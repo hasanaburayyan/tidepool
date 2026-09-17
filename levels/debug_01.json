@@ -1,0 +1,6 @@
+{
+  "id": 1, "title": "Straight Shot", "par": 2, "tide": 30,
+  "source": { "pos": [0, 2], "from": "W" },
+  "grid": [ ".....", ".....", "-|-|-", ".....", "....." ],
+  "critters": [ { "pos": [4, 2], "type": "crab" } ]
+}

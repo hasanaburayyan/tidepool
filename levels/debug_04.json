@@ -1,0 +1,7 @@
+{
+  "id": 4, "title": "Barnacled", "par": 3, "tide": 35,
+  "source": { "pos": [2, 0], "from": "N" },
+  "grid": [ "..|..", "..|..", "..JF.", "...-.", "...|." ],
+  "locked": [ [2, 1] ],
+  "critters": [ { "pos": [3, 4], "type": "crab" } ]
+}

@@ -11,3 +11,8 @@ export/
 # OS / editor
 .DS_Store
 *.tmp
+.godot/
+export/
+*.tmp
+build/
+__pycache__/
