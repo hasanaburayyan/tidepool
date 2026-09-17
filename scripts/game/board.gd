@@ -8,7 +8,10 @@ extends Node2D
 ## The tide is a MOVE budget, not a clock (design doc §2.1): one rotation costs one unit,
 ## thinking is free, and running out is never a fail screen -- the tide comes back in.
 
-const TILE_SIZE := 72
+## 64, not 72, so Cove's 32 px sprites land at exactly 2x. Pixel art at a fractional
+## scale under a Nearest filter drops and doubles rows of pixels; 2x is the whole point.
+## The largest board we ship is 7x6, so 7*64 + margins still fits the 960x640 viewport.
+const TILE_SIZE := 64
 const MARGIN := Vector2(40, 108)
 const LEVEL_DIR := "res://levels"
 ## How long a newly wet tile flashes. Flow itself is an instant BFS recompute; only the
@@ -46,7 +49,48 @@ var reset_button := Rect2()
 @onready var _font: Font = ThemeDB.fallback_font
 
 
+## Art the artist has landed, keyed "i_wet", "overlay_locked", "crab_rescued". Anything
+## absent falls back to the placeholder shapes, so sprites can arrive ONE AT A TIME and be
+## seen in the game the same day instead of waiting for a complete sheet.
+## Naming and sizes are the contract in tidepool-engineering §9.
+var art: Dictionary = {}
+
+
+## Cove's generator names sprites after the connection set they were drawn with. The
+## engine only ever needs the BASE orientation, because it rotates at draw time -- so
+## channel_NS is our straight, and channel_EW is the same image turned, which we ignore.
+const ART_ALIASES := {
+	"channel_ns_dry": "i_dry",
+	"channel_ns_wet": "i_wet",
+}
+
+
+func _load_art() -> void:
+	for dir_path in ["res://assets/tiles", "res://assets/critters"]:
+		var dir := DirAccess.open(dir_path)
+		if dir == null:
+			continue
+		for file_name in dir.get_files():
+			# Godot hands us "x.png.import" in an exported build; the resource is "x.png".
+			var clean := file_name.trim_suffix(".import")
+			if not clean.ends_with(".png"):
+				continue
+			var tex := load(dir_path.path_join(clean))
+			if tex is Texture2D:
+				var key := clean.get_basename().to_lower()
+				art[ART_ALIASES.get(key, key)] = tex
+
+
+## Draws a base-orientation sprite turned `turns` quarter-turns clockwise about its centre.
+func _draw_sprite(tex: Texture2D, rect: Rect2, turns: int = 0) -> void:
+	var size := Vector2(TILE_SIZE, TILE_SIZE)
+	draw_set_transform(rect.get_center(), turns * TAU * 0.25, Vector2.ONE)
+	draw_texture_rect(tex, Rect2(-size * 0.5, size), false)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
 func _ready() -> void:
+	_load_art()
 	levels = _find_levels()
 	if levels.is_empty():
 		push_error("no .tide levels found in %s" % LEVEL_DIR)
@@ -223,6 +267,13 @@ func _draw_tile(pos: Vector2i) -> void:
 	if tile.kind == Tile.Kind.EMPTY:
 		return
 
+	var shape_rot := tile.shape_rot()
+	var sprite: Variant = art.get("%s_%s" % [shape_rot[0], "wet" if is_wet else "dry"])
+	if sprite != null:
+		_draw_sprite(sprite, rect, shape_rot[1])
+		_draw_locked_pips(tile, rect)
+		return
+
 	# The channel is a stub from the tile centre out to each open side, so the shape of
 	# the pipe is readable at a glance. Pillar two: no hidden state.
 	var centre := rect.get_center()
@@ -247,10 +298,19 @@ func _draw_tile(pos: Vector2i) -> void:
 		_:
 			pass
 
-	if tile.locked:
-		# Barnacles: corner pips so locked tiles read as "do not bother".
-		draw_circle(rect.position + Vector2(10, 10), 5.0, LOCKED)
-		draw_circle(rect.end - Vector2(10, 10), 5.0, LOCKED)
+	_draw_locked_pips(tile, rect)
+
+
+func _draw_locked_pips(tile: Tile, rect: Rect2) -> void:
+	if not tile.locked:
+		return
+	var overlay: Variant = art.get("overlay_locked")
+	if overlay != null:
+		_draw_sprite(overlay, rect)
+		return
+	# Barnacles: corner pips so locked tiles read as "do not bother".
+	draw_circle(rect.position + Vector2(10, 10), 5.0, LOCKED)
+	draw_circle(rect.end - Vector2(10, 10), 5.0, LOCKED)
 
 
 func _draw_arrow(centre: Vector2, dir: int, colour: Color) -> void:
@@ -263,6 +323,11 @@ func _draw_arrow(centre: Vector2, dir: int, colour: Color) -> void:
 func _draw_critter(i: int) -> void:
 	var critter: Dictionary = grid.critters[i]
 	var rect := _tile_rect(critter["pos"])
+	var state := "rescued" if rescued.has(i) else "stranded"
+	var sprite: Variant = art.get("%s_%s" % [critter.get("type", "crab"), state])
+	if sprite != null:
+		_draw_sprite(sprite, rect)
+		return
 	draw_circle(rect.get_center(), 14.0, CRITTER_SAFE if rescued.has(i) else CRITTER)
 	var label: String = String(critter["type"]).substr(0, 1).to_upper()
 	draw_string(_font, rect.get_center() + Vector2(-5, 5), label, 0, -1, 14, TEXT)
