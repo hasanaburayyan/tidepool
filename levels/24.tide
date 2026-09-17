@@ -1,0 +1,36 @@
+# The last pool. Every rule the game has: a refusing arrow, an arrow you must aim
+# down, a corridor that only fills backwards, a cross serving three ways, and two
+# thirsts that each cost a dead-end branch. Nothing new is introduced - level 24
+# is the exam, not the lesson. The tide is generous on purpose.
+id: 24
+name: The Last Pool
+size: 7x6
+par: 20
+tide: 26
+source: r2c0
+grid:
+  .. L3 T3 I0 L0 .. ..
+  .. I1 P1 .. O0 .. ..
+  e1 t3 o3 i1 x0 I0 L0
+  .. .. .. .. I1 .. I1
+  .. .. P0 I0 T0 .. e0
+  .. .. .. .. e0 .. ..
+critters:
+  r5c4 anemone
+  r4c6 starfish
+  r2c3 starfish
+solution:
+  r1c1 cw1
+  r0c1 cw2
+  r0c2 cw2
+  r1c2 cw1
+  r0c3 cw1
+  r0c4 cw2
+  r1c4 cw2
+  r2c5 cw1
+  r2c6 cw2
+  r3c6 cw1
+  r3c4 cw1
+  r4c4 cw2
+  r4c3 cw1
+  r4c2 cw1
