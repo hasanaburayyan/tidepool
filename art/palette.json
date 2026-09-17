@@ -1,0 +1,21 @@
+{
+  "name": "Low Tide, Late Afternoon",
+  "note": "Single source of truth for every generated sprite. Change a hex here and re-run `python3 art/build.py` to repaint the whole game.",
+  "colors": {
+    "dry_sand":   "#F2D8A7",
+    "wet_sand":   "#C9975C",
+    "deep_umber": "#3E2C2A",
+    "tidewater":  "#2FA3A3",
+    "shimmer":    "#7FE0D4",
+    "coral":      "#E86A4B"
+  },
+  "roles": {
+    "rock_body":     "dry_sand",
+    "rock_speckle":  "wet_sand",
+    "outline":       "deep_umber",
+    "channel_dry":   "wet_sand",
+    "channel_wet":   "tidewater",
+    "channel_gloss": "shimmer",
+    "critter":       "coral"
+  }
+}
