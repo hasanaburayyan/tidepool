@@ -30,6 +30,7 @@ jobs:
       - name: Verify every level (release strictness)
         env:
           TIDEPOOL_RELEASE: "1"
+          TIDEPOOL_NODE_BUDGET: "60000000"
         run: godot --headless --path . --script res://tools/verify_levels.gd -- res://levels
       - name: Export Linux
         run: |

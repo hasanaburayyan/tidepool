@@ -15,7 +15,11 @@ extends SceneTree
 ## search runs out of node budget WARNS instead: an unproven par is not a broken level,
 ## and a check that cannot afford to run must not be able to block the build.
 
+## Cheap enough to sit on every pull request. The release path raises it via
+## TIDEPOOL_NODE_BUDGET, because there a slow proof beats no proof.
 const NODE_BUDGET := 2000000
+
+static var node_budget := NODE_BUDGET
 
 const OK := 0
 const FAILED := 1
@@ -24,6 +28,10 @@ const WARNED := 2
 
 func _initialize() -> void:
 	var dir_path := "res://levels"
+	var env_budget := OS.get_environment("TIDEPOOL_NODE_BUDGET")
+	if env_budget.is_valid_int():
+		node_budget = maxi(1, env_budget.to_int())
+
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		dir_path = args[0]
@@ -100,7 +108,7 @@ func _verify(path: String) -> int:
 		problems.append("solution costs %d clicks but par is %d" % [clicks, grid.par])
 
 	# 2. Optimality. Search one move past par so "par is a move loose" is visible too.
-	var found := Validator.solve(grid, grid.par, NODE_BUDGET)
+	var found := Validator.solve(grid, grid.par, node_budget)
 	if found["exhausted"]:
 		# Unproven, not disproven. The replay above already showed the level is
 		# beatable in exactly par; all this misses is "and no faster".
