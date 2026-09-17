@@ -254,7 +254,7 @@ def main() -> None:
             assert_states_match(mask, pal, locked=lock)
             prefix = "locked" if lock else "channel"
             for wet in (False, True):
-                path = os.path.join(TILE_OUT, "%s_%s_%s.png" % (prefix, name, "wet" if wet else "dry"))
+                path = os.path.join(TILE_OUT, "%s_%s_%s.png" % (prefix, name.lower(), "wet" if wet else "dry"))
                 tiles.render(mask, wet, pal, locked=lock).save(path)
                 written.append(path)
 
