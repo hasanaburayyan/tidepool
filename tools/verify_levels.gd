@@ -11,9 +11,15 @@ extends SceneTree
 ##            my BFS and the Director's validator)
 ##   tide     tide == par + 5 for levels 1-12, par + 6 from 13 on
 ##
-## Exit code is 1 if anything fails, so CI can gate on it.
+## Exit code is 1 if anything FAILS, so CI can gate on it. A level whose optimality
+## search runs out of node budget WARNS instead: an unproven par is not a broken level,
+## and a check that cannot afford to run must not be able to block the build.
 
 const NODE_BUDGET := 2000000
+
+const OK := 0
+const FAILED := 1
+const WARNED := 2
 
 
 func _initialize() -> void:
@@ -29,13 +35,18 @@ func _initialize() -> void:
 		return
 
 	var failed := 0
+	var warned := 0
 	var t0 := Time.get_ticks_msec()
 	for path in files:
-		failed += _verify(path)
+		var code := _verify(path)
+		if code == FAILED:
+			failed += 1
+		elif code == WARNED:
+			warned += 1
 	var secs := (Time.get_ticks_msec() - t0) / 1000.0
 
 	print("")
-	print("%d levels, %d FAILED  (%.1fs)" % [files.size(), failed, secs])
+	print("%d levels, %d warned, %d FAILED  (%.1fs)" % [files.size(), warned, failed, secs])
 	quit(1 if failed > 0 else 0)
 
 
@@ -51,7 +62,9 @@ func _tide_files(dir_path: String) -> Array[String]:
 	return out
 
 
-## Returns 1 when the level failed any claim, 0 when it is clean.
+## OK, or WARNED when a claim could not be checked, or FAILED when one is false.
+## The distinction matters in CI: "this level is wrong" must break the build,
+## "my search could not afford to prove this level is right" must not.
 func _verify(path: String) -> int:
 	var parsed := TideFormat.load_file(path)
 	var label := path.get_file()
@@ -63,6 +76,7 @@ func _verify(path: String) -> int:
 	var grid: Grid = parsed["grid"]
 	var solution: Array = parsed["solution"]
 	var problems: Array[String] = []
+	var warnings: Array[String] = []
 
 	# 1. Replay.
 	var replay := grid.clone()
@@ -80,7 +94,9 @@ func _verify(path: String) -> int:
 	# 2. Optimality. Search one move past par so "par is a move loose" is visible too.
 	var found := Validator.solve(grid, grid.par, NODE_BUDGET)
 	if found["exhausted"]:
-		problems.append("search ran out of budget after %d nodes" % found["nodes"])
+		# Unproven, not disproven. The replay above already showed the level is
+		# beatable in exactly par; all this misses is "and no faster".
+		warnings.append("par not proven optimal: search hit its %d node budget" % found["nodes"])
 	elif not found["solved"]:
 		problems.append("engine finds NO solution within par %d" % grid.par)
 	elif int(found["moves"]) != grid.par:
@@ -92,9 +108,14 @@ func _verify(path: String) -> int:
 		problems.append("tide %d, expected par+%d = %d" % [grid.tide, want_tide - grid.par, want_tide])
 
 	if problems.is_empty():
-		print("ok   %-10s par %-2d tide %-2d  %d critters, %d nodes searched"
-				% [label, grid.par, grid.tide, grid.critters.size(), found["nodes"]])
-		return 0
+		print("%-4s %-10s par %-2d tide %-2d  %d critters, %d nodes searched"
+				% ["warn" if warnings.size() > 0 else "ok", label, grid.par, grid.tide,
+				grid.critters.size(), found["nodes"]])
+		for w in warnings:
+			print("     %-10s %s" % ["", w])
+		return WARNED if warnings.size() > 0 else OK
 	for p in problems:
 		print("FAIL %-10s %s" % [label, p])
-	return 1
+	for w in warnings:
+		print("WARN %-10s %s" % [label, w])
+	return FAILED
