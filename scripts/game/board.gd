@@ -102,7 +102,11 @@ func _recompute() -> void:
 			splashes[idx] = SPLASH_TIME
 	for i in Flow.rescued(grid, wet):
 		rescued[i] = true
-	if rescued.size() == grid.critters.size() and not grid.critters.is_empty():
+	# Sponges are not latched the way critters are: rotating one off the route wrings it
+	# out and the level un-clears. A sponge you cannot route back to is a dead level, so
+	# levels/ must never put one on the only path to a critter.
+	if rescued.size() == grid.critters.size() and not grid.critters.is_empty() \
+			and Flow.all_sponges_wet(grid, wet):
 		cleared = true
 	queue_redraw()
 

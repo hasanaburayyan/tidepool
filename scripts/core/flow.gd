@@ -68,6 +68,23 @@ static func all_rescued(grid: Grid, wet: Dictionary) -> bool:
 	return true
 
 
+## A sponge is thirsty rock (`tidepool-sponge-rules` v2): it drinks from either end and
+## emits from neither, so you can never route *through* one -- but the level does not
+## clear until every sponge is soaked, which means each one costs a dedicated dead-end
+## branch. Derived from the wet set on every call, never stored, so flow stays stateless.
+static func all_sponges_wet(grid: Grid, wet: Dictionary) -> bool:
+	for i in grid.tiles.size():
+		var t: Tile = grid.tiles[i]
+		if t != null and t.kind == Tile.Kind.SPONGE and not wet.has(i):
+			return false
+	return true
+
+
+## The clear condition: every critter standing in water and every sponge soaked.
+static func is_cleared(grid: Grid, wet: Dictionary) -> bool:
+	return all_rescued(grid, wet) and all_sponges_wet(grid, wet)
+
+
 ## Convenience for the solver: recompute flow and ask whether the level is cleared.
 static func is_solved(grid: Grid) -> bool:
-	return all_rescued(grid, compute(grid))
+	return is_cleared(grid, compute(grid))

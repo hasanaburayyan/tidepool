@@ -295,6 +295,24 @@ func _test_validator() -> void:
 		_check(rc["solved"], "a right-click level is solved")
 		_eq(rc["moves"], 1, "three clockwise steps cost one click")
 
+	_suite("a sponge is thirsty rock")
+	# tidepool-sponge-rules v2: a sponge never emits, so it is a wall you cannot route
+	# through -- but it must end up wet for the level to clear, exactly like a critter
+	# must be rescued. Unlike a rescue it does not latch; wring it out and the level
+	# un-clears. Levels 19-20 are built on this.
+	var sp := TideFormat.parse("id: 1\nname: sponge\nsize: 3x2\npar: 1\ntide: 6\n"
+			+ "source: r0c0\ngrid:\n  i1 t2 P0\n  .. p0 ..\ncritters:\n  r0c2 crab\n", "sp")
+	_check(sp["ok"], "a level with a sponge parses: %s" % [sp["errors"]])
+	if sp["ok"]:
+		var sg: Grid = sp["grid"]
+		var sw := Flow.compute(sg)
+		_check(not sw.has(sg.index(Vector2i(2, 0))),
+				"a sponge passes nothing on: the tile past it stays dry")
+		_check(sw.has(sg.index(Vector2i(1, 1))), "but the sponge itself drinks")
+		_check(not Flow.is_cleared(sg, sw), "a dry sponge keeps the level uncleared")
+		_check(not Flow.all_sponges_wet(sg, sw),
+				"the sponge behind the first one is dry, so the board is not cleared")
+
 	_suite("one-way and sponge glyphs parse")
 	var glyphs := TideFormat.parse("id: 1\nname: g\nsize: 3x1\npar: 1\ntide: 6\n"
 			+ "source: r0c0\ngrid:\n  e1 o1 p0\ncritters:\n  r0c1 crab\n", "glyphs")
