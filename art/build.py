@@ -64,25 +64,57 @@ def greyscale(img: Canvas) -> Canvas:
     return out
 
 
-def assert_states_match(mask: int, pal: dict) -> None:
+def assert_states_match(mask: int, pal: dict, locked: bool = False) -> None:
     """Rule 2, as an assertion instead of a promise.
 
     Dry and wet must differ on exactly the channel-floor pixels and nowhere else. If a
     future edit puts a highlight on the rock of the wet tile, this fails the build rather
     than shipping a silhouette that pops during the shader tween.
     """
-    dry = tiles.render(mask, False, pal)
-    wet = tiles.render(mask, True, pal)
+    dry = tiles.render(mask, False, pal, locked=locked)
+    wet = tiles.render(mask, True, pal, locked=locked)
     channel = tiles.channel_cells(mask)
-    differing = {(x, y) for y in range(tiles.SIZE) for x in range(tiles.SIZE) if dry[x, y] != wet[x, y]}
+    differing = diff_pixels(dry, wet)
     if differing != channel:
         stray = sorted(differing - channel)[:5]
         missing = sorted(channel - differing)[:5]
         raise SystemExit(
-            "FAIL %s: dry/wet differ outside the channel floor. stray=%s unchanged-floor=%s"
-            % (tiles.name_from_mask(mask), stray, missing)
+            "FAIL %s%s: dry/wet differ outside the channel floor. stray=%s unchanged-floor=%s"
+            % (tiles.name_from_mask(mask), " locked" if locked else "", stray, missing)
         )
-    print("  ok   %-4s dry/wet differ on exactly %d channel pixels" % (tiles.name_from_mask(mask), len(channel)))
+    print("  ok   %-4s%s dry/wet differ on exactly %d channel pixels"
+          % (tiles.name_from_mask(mask), " locked" if locked else "       ", len(channel)))
+
+
+def diff_pixels(a: Canvas, b: Canvas) -> set:
+    return {(x, y) for y in range(a.height) for x in range(a.width) if a[x, y] != b[x, y]}
+
+
+def assert_locked_is_texture(mask: int, pal: dict) -> None:
+    """Locked is a crust on the rock, and the build makes sure it stayed one.
+
+    Three things have to hold or the variant is lying to the player. It may only touch
+    rock: not the channel, so the water looks identical and the shader tween is unaffected,
+    and not the 1px outline, so the silhouette is pixel-for-pixel the same tile. And it has
+    to actually be there in useful quantity - a crust of four pixels is not a signal that a
+    tile will refuse to turn.
+    """
+    name = tiles.name_from_mask(mask)
+    plain = tiles.render(mask, True, pal)
+    locked = tiles.render(mask, True, pal, locked=True)
+    channel = tiles.channel_cells(mask)
+    outline = tiles._bank_cells(channel)
+    changed = diff_pixels(plain, locked)
+
+    trespass = changed & (channel | outline)
+    if trespass:
+        raise SystemExit("FAIL %s locked: barnacles touched the channel or outline at %s"
+                         % (name, sorted(trespass)[:5]))
+    if len(changed) < 20:
+        raise SystemExit("FAIL %s locked: only %d barnacle pixels, too faint to read as locked"
+                         % (name, len(changed)))
+    print("  ok   %-4s locked adds %3d barnacle pixels, none on the channel or outline"
+          % (name, len(changed)))
 
 
 def assert_masks_distinct(pal: dict) -> None:
@@ -93,16 +125,18 @@ def assert_masks_distinct(pal: dict) -> None:
     asked to guess which way the water goes, and the build stops.
     """
     seen = {}
-    for name in TILE_MASKS:
-        img = greyscale(tiles.render(tiles.mask_from_name(name), True, pal))
+    variants = [(name, lock) for name in TILE_MASKS for lock in (False, True)]
+    for name, lock in variants:
+        label = name + (" locked" if lock else "")
+        img = greyscale(tiles.render(tiles.mask_from_name(name), True, pal, locked=lock))
         key = bytes(v for y in range(img.height) for x in range(img.width) for v in img[x, y])
         if key in seen:
-            raise SystemExit("FAIL: %s and %s are the same tile in greyscale" % (seen[key], name))
-        seen[key] = name
-    print("  ok   %d tile shapes, %d distinct in greyscale" % (len(TILE_MASKS), len(seen)))
+            raise SystemExit("FAIL: %s and %s are the same tile in greyscale" % (seen[key], label))
+        seen[key] = label
+    print("  ok   %d tile pictures, %d distinct in greyscale" % (len(variants), len(seen)))
 
 
-def build_family_sheet(pal: dict) -> Canvas:
+def build_family_sheet(pal: dict, locked: bool = False) -> Canvas:
     """Every mask, dry on the top row and wet on the bottom, in mask order.
 
     Read down a column to check rule 2 by eye - only the channel floor may move. Read
@@ -111,8 +145,24 @@ def build_family_sheet(pal: dict) -> Canvas:
     sheet = Canvas(tiles.SIZE * len(TILE_MASKS), tiles.SIZE * 2, pal["outline"])
     for i, name in enumerate(TILE_MASKS):
         mask = tiles.mask_from_name(name)
-        sheet.blit(tiles.render(mask, False, pal), i * tiles.SIZE, 0)
-        sheet.blit(tiles.render(mask, True, pal), i * tiles.SIZE, tiles.SIZE)
+        sheet.blit(tiles.render(mask, False, pal, locked=locked), i * tiles.SIZE, 0)
+        sheet.blit(tiles.render(mask, True, pal, locked=locked), i * tiles.SIZE, tiles.SIZE)
+    return sheet
+
+
+def build_locked_comparison(pal: dict) -> Canvas:
+    """Free rock on top, barnacled rock below, same mask in each column.
+
+    The comparison is the point: a reviewer has to be able to tell at a glance that only
+    the stone changed. Nothing in the channel moves between the two rows, which is what
+    lets a locked tile and a free one sit next to each other in a level without the water
+    looking like two different substances.
+    """
+    sheet = Canvas(tiles.SIZE * len(TILE_MASKS), tiles.SIZE * 2, pal["outline"])
+    for i, name in enumerate(TILE_MASKS):
+        mask = tiles.mask_from_name(name)
+        sheet.blit(tiles.render(mask, True, pal), i * tiles.SIZE, 0)
+        sheet.blit(tiles.render(mask, True, pal, locked=True), i * tiles.SIZE, tiles.SIZE)
     return sheet
 
 
@@ -200,11 +250,17 @@ def main() -> None:
     written = []
     for name in TILE_MASKS:
         mask = tiles.mask_from_name(name)
-        assert_states_match(mask, pal)
-        for wet in (False, True):
-            path = os.path.join(TILE_OUT, "channel_%s_%s.png" % (name, "wet" if wet else "dry"))
-            tiles.render(mask, wet, pal).save(path)
-            written.append(path)
+        for lock in (False, True):
+            assert_states_match(mask, pal, locked=lock)
+            prefix = "locked" if lock else "channel"
+            for wet in (False, True):
+                path = os.path.join(TILE_OUT, "%s_%s_%s.png" % (prefix, name, "wet" if wet else "dry"))
+                tiles.render(mask, wet, pal, locked=lock).save(path)
+                written.append(path)
+
+    print("\nchecking locked is a texture on the rock and nothing else:")
+    for name in TILE_MASKS:
+        assert_locked_is_texture(tiles.mask_from_name(name), pal)
 
     strip = build_strip(pal)
     strip.save(os.path.join(PREVIEW_OUT, "strip_1x.png"))
@@ -215,11 +271,15 @@ def main() -> None:
     scaled(sheet, 3).save(os.path.join(PREVIEW_OUT, "tiles_3x.png"))
     scaled(greyscale(sheet), 3).save(os.path.join(PREVIEW_OUT, "tiles_3x_greyscale.png"))
 
+    compare = build_locked_comparison(pal)
+    scaled(compare, 3).save(os.path.join(PREVIEW_OUT, "locked_3x.png"))
+    scaled(greyscale(compare), 3).save(os.path.join(PREVIEW_OUT, "locked_3x_greyscale.png"))
+
     scene = build_junction_scene(pal)
     scaled(scene, 4).save(os.path.join(PREVIEW_OUT, "junction_4x.png"))
     scaled(greyscale(scene), 4).save(os.path.join(PREVIEW_OUT, "junction_4x_greyscale.png"))
 
-    print("\nwrote %d tile sprites to assets/tiles/ and 7 contact sheets to art/preview/" % len(written))
+    print("\nwrote %d tile sprites to assets/tiles/ and 9 contact sheets to art/preview/" % len(written))
     for p in written:
         print("  " + os.path.relpath(p, ROOT))
 
