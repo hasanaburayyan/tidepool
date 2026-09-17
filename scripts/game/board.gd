@@ -56,13 +56,24 @@ var reset_button := Rect2()
 var art: Dictionary = {}
 
 
-## Cove's generator names sprites after the connection set they were drawn with. The
-## engine only ever needs the BASE orientation, because it rotates at draw time -- so
-## channel_NS is our straight, and channel_EW is the same image turned, which we ignore.
-const ART_ALIASES := {
-	"channel_ns_dry": "i_dry",
-	"channel_ns_wet": "i_wet",
+const KIND_PREFIX := {
+	Tile.Kind.CHANNEL: "channel",
+	Tile.Kind.CRAB: "channel",
+	Tile.Kind.SPONGE: "sponge",
+	Tile.Kind.ONEWAY: "oneway",
 }
+
+
+## The name of the sprite for this tile's exact orientation, e.g. "channel_nesw".
+## Preferred over the base-shape name because a tileset that is lit from one direction
+## cannot be rotated: a corner facing NE and the same corner facing SW want different
+## shading. One file per orientation is the artist's call to make, not mine to force.
+func _facing_key(tile: Tile) -> String:
+	var sides := ""
+	for dir in Tile.DIRS:
+		if tile.connects(dir):
+			sides += Tile.DIR_NAMES[dir]
+	return "%s_%s" % [KIND_PREFIX.get(tile.kind, "channel"), sides.to_lower()]
 
 
 func _load_art() -> void:
@@ -77,8 +88,7 @@ func _load_art() -> void:
 				continue
 			var tex := load(dir_path.path_join(clean))
 			if tex is Texture2D:
-				var key := clean.get_basename().to_lower()
-				art[ART_ALIASES.get(key, key)] = tex
+				art[clean.get_basename().to_lower()] = tex
 
 
 ## Draws a base-orientation sprite turned `turns` quarter-turns clockwise about its centre.
@@ -267,8 +277,17 @@ func _draw_tile(pos: Vector2i) -> void:
 	if tile.kind == Tile.Kind.EMPTY:
 		return
 
+	# Art in this tile's exact orientation wins; a base-orientation image turned by the
+	# engine is the fallback; the drawn placeholder is the fallback to that. Every level
+	# stays playable no matter how much of the set exists.
+	var state := "wet" if is_wet else "dry"
+	var sprite: Variant = art.get("%s_%s" % [_facing_key(tile), state])
+	if sprite != null:
+		_draw_sprite(sprite, rect)
+		_draw_locked_pips(tile, rect)
+		return
 	var shape_rot := tile.shape_rot()
-	var sprite: Variant = art.get("%s_%s" % [shape_rot[0], "wet" if is_wet else "dry"])
+	sprite = art.get("%s_%s" % [shape_rot[0], state])
 	if sprite != null:
 		_draw_sprite(sprite, rect, shape_rot[1])
 		_draw_locked_pips(tile, rect)
