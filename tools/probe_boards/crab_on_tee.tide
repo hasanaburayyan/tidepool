@@ -1,0 +1,18 @@
+id: 81
+name: Crab On A Tee
+size: 5x5
+par: 2
+tide: 8
+source: r2c0
+grid:
+  .. .. e2 .. ..
+  .. .. I0 .. ..
+  e1 i1 t3 i1 ..
+  .. .. .. .. ..
+  .. .. .. .. ..
+critters:
+  r0c2 anemone
+crabs:
+  r2c2
+solution:
+  r1c2 cw1

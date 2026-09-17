@@ -97,6 +97,10 @@ class Level:
         self.source = None
         self.tiles = {}       # (r,c) -> Tile ; missing key == solid rock
         self.critters = []    # [((r,c), species)]
+        self.crabs = []       # [(r,c)] - crabs are an OVERLAY on a tile, like critters,
+                              # so a crab can sit on a tee or a corner and not only on a
+                              # straight. The C glyph still works and means "straight with
+                              # a crab on it".
         self.solution = []    # [((r,c), signed_steps)]
         self._parse()
 
@@ -138,7 +142,7 @@ class Level:
                     self.par_override = int(val)
                 elif key == "source":
                     self.source = self._coord(val)
-                elif key in ("grid", "critters", "solution"):
+                elif key in ("grid", "critters", "solution", "crabs"):
                     block = key
                 else:
                     raise ValueError("unknown header %r" % key)
@@ -150,6 +154,8 @@ class Level:
                 parts = body.split()
                 self.critters.append((self._coord(parts[0]),
                                       parts[1] if len(parts) > 1 else "starfish"))
+            elif block == "crabs":
+                self.crabs.append(self._coord(body.split()[0]))
             elif block == "solution":
                 parts = body.split()
                 coord, move = self._coord(parts[0]), parts[1].lower()
@@ -212,8 +218,13 @@ class Level:
             total += abs(steps)
         return tuple(state), total
 
-    def wet(self, state):
-        """BFS from the source. Returns the set of wet cells."""
+    def _flow(self, state, crabs):
+        """BFS from the source. Returns (wet cells, entry side per cell).
+
+        A cell occupied by a crab is a blocker: water reaches it and stops there.
+        Crab occupancy is POSITIONAL, not a property of the tile - crabs walk, and
+        the tile one leaves conducts normally afterwards.
+        """
         keys = self.rotatables()
         rot = {p: state[i] for i, p in enumerate(keys)}
 
@@ -221,9 +232,12 @@ class Level:
             return rot.get(p, self.tiles[p].rot)
 
         seen = {self.source}
+        entry = {}
         stack = [self.source]
         while stack:
             r, c = stack.pop()
+            if (r, c) in crabs:
+                continue                      # the crab is in the way; water stops
             tile = self.tiles[(r, c)]
             for d in tile.conns(rot_of((r, c))):
                 if not tile.can_exit(d, rot_of((r, c))):
@@ -232,11 +246,47 @@ class Level:
                 nb = (r + dr, c + dc)
                 if nb in seen or nb not in self.tiles:
                     continue
-                ntile = self.tiles[nb]
-                if ntile.can_enter(OPPOSITE[d], rot_of(nb)):
+                if self.tiles[nb].can_enter(OPPOSITE[d], rot_of(nb)):
                     seen.add(nb)
+                    entry[nb] = OPPOSITE[d]   # side of nb the water came in through
                     stack.append(nb)
-        return seen
+        return seen, entry
+
+    def resolve(self, state):
+        """Settle the board: crabs walk, then report the final wet set.
+
+        A crab walks exactly one tile, once, carrying on in the direction the water
+        was already travelling. It vacates the tile it was blocking and blocks the
+        one it arrives at - which is the whole mechanic, and why it is worth more
+        than a wall. A crab with nowhere to go stays put and waves.
+
+        Iterated to a fixpoint rather than simulated over time: each crab moves at
+        most once, so this terminates, and the answer depends only on the board and
+        the rotations. Stateless recompute survives, same as every other mechanic.
+        """
+        crabs = set(self.crabs) | {p for p, t in self.tiles.items() if t.shape == "C"}
+        settled = set()
+        for _ in range(len(crabs) + 1):
+            wet, entry = self._flow(state, crabs)
+            stepped = False
+            for c in sorted(crabs - settled):
+                if c not in wet or c not in entry:
+                    continue                  # not reached yet, or it is the source
+                dr, dc = DELTA[OPPOSITE[entry[c]]]
+                dest = (c[0] + dr, c[1] + dc)
+                if dest in self.tiles and dest not in crabs:
+                    crabs.discard(c)
+                    crabs.add(dest)
+                    settled.add(dest)
+                else:
+                    settled.add(c)            # nowhere to walk; it stays and waves
+                stepped = True
+            if not stepped:
+                break
+        return self._flow(state, crabs)[0], crabs
+
+    def wet(self, state):
+        return self.resolve(state)[0]
 
     def solved(self, state):
         """Every critter rescued AND every sponge satisfied.
