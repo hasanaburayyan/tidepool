@@ -1,0 +1,8 @@
+{
+  "id": 5, "title": "Sponge And Arrow", "par": 5, "tide": 45,
+  "source": { "pos": [0, 2], "from": "W" },
+  "grid": [ ".....", ".L|7.", "-t-J-", ".....", "....." ],
+  "sponges": [ [2, 2] ],
+  "oneway": [ { "pos": [2, 1], "out": "S" } ],
+  "critters": [ { "pos": [4, 2], "type": "crab" } ]
+}

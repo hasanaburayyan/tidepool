@@ -1,0 +1,18 @@
+id: 2
+name: Two Turns
+size: 5x5
+par: 3
+tide: 8
+source: r2c0
+grid:
+  .. .. L0 i1 e3
+  .. .. I1 .. ..
+  e1 i1 L2 .. ..
+  .. .. .. .. ..
+  .. .. .. .. ..
+critters:
+  r0c4 starfish
+solution:
+  r2c2 cw1
+  r1c2 cw1
+  r0c2 cw1

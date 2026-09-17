@@ -11,3 +11,6 @@ export/
 # OS / editor
 .DS_Store
 *.tmp
+.godot/
+export/
+*.tmp
