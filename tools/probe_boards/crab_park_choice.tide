@@ -1,0 +1,25 @@
+# Probe board: the crab is pushed along the channel and PARKS. The player picks the
+# approach direction by rotating r2c1 / r1c2, and the crab parks in a different
+# pocket depending on which way the water reaches it. One pocket is harmless; the
+# other parks the crab on the route to the second critter.
+id: 83
+name: Crab Parks Somewhere
+size: 5x5
+par: 3
+tide: 9
+source: r2c0
+grid:
+  .. .. I0 .. ..
+  .. .. I0 .. ..
+  e1 I1 x0 I1 e3
+  .. .. I0 .. ..
+  .. .. e0 .. ..
+critters:
+  r2c4 starfish
+  r4c2 anemone
+crabs:
+  r2c2
+solution:
+  r2c1 cw1
+  r2c3 cw1
+  r1c2 cw1
