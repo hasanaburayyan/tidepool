@@ -1,7 +1,9 @@
 # Teaches: the arrow REFUSES.
 # The tee at r2c1 is LOCKED, so its east mouth permanently stares into o3 - a
 # one-way pointing back toward the source. That mouth gets wet and nothing flows
-# through it; the arrow greys out and says so. The lesson is forced, not optional,
+# through it; the arrow SHUTS - a sluice bar closes behind the chevron - and says so.
+# (Not greyed: a refused tile is dry, and the dry channel floor is the same colour a
+# greyed arrow would be, so it would vanish exactly when it needs to be read.) The lesson is forced, not optional,
 # and it costs the player no moves to see. The only real route is north and around.
 #
 # Authoring note: my first cut of this level declared par 9 and the validator
