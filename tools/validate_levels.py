@@ -239,8 +239,18 @@ class Level:
         return seen
 
     def solved(self, state):
+        """Every critter rescued AND every sponge satisfied.
+
+        Sponges are thirsty rock: they must end up wet, and they never pass water
+        on. So each one costs you a dedicated dead-end branch. An earlier rule had
+        them merely absorb-and-block, which a state-space probe showed was exactly
+        equivalent to solid rock - same solvable states on every board tested. A
+        tile the player cannot act on is not a mechanic.
+        """
         w = self.wet(state)
-        return all(pos in w for pos, _ in self.critters)
+        if not all(pos in w for pos, _ in self.critters):
+            return False
+        return all(p in w for p, t in self.tiles.items() if t.shape == "P")
 
     # -------------------------------------------------- bounded optimality
 

@@ -1,0 +1,29 @@
+# Teaches: the arrow is YOURS to point. Level 14's arrow was locked scenery that
+# refused you; this one is uppercase, so its direction is just another rotation.
+# It starts pointing back at the source - the same refusal the player met last
+# level - and the fix is now in their hands.
+id: 15
+name: Turn the Arrow
+size: 6x5
+par: 11
+tide: 17
+source: r3c0
+grid:
+  .. .. .. .. .. ..
+  .. .. L0 O3 T3 L1
+  .. .. I1 .. I1 I1
+  e1 I0 L2 .. e0 e0
+  .. .. .. .. .. ..
+critters:
+  r3c4 starfish
+  r3c5 anemone
+solution:
+  r3c1 cw1
+  r3c2 cw1
+  r2c2 cw1
+  r1c2 cw1
+  r1c3 cw2
+  r1c4 cw2
+  r1c5 cw1
+  r2c5 cw1
+  r2c4 cw1
