@@ -1,0 +1,31 @@
+# The channels finale: two tees in series, three critters, no new rules. Everything
+# the player has learned about shape-reading, in one board.
+id: 12
+name: Last Channel
+size: 6x5
+par: 16
+tide: 21
+source: r2c0
+grid:
+  .. .. L0 i1 I0 L0
+  .. .. I1 e2 e2 I1
+  e1 I0 T0 I1 I1 e0
+  .. .. L2 T1 L2 ..
+  .. .. .. .. .. ..
+critters:
+  r1c3 anemone
+  r1c4 starfish
+  r2c5 starfish
+solution:
+  r2c1 cw1
+  r2c2 cw2
+  r1c2 cw1
+  r0c2 cw1
+  r0c4 cw1
+  r0c5 cw2
+  r1c5 cw1
+  r3c2 cw2
+  r3c3 cw2
+  r2c3 cw1
+  r3c4 cw1
+  r2c4 cw1

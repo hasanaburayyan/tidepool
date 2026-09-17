@@ -1,0 +1,22 @@
+# Teaches: locked tiles shape the route, AND that water filling a dead-end stub is
+# harmless. The i0 at r3c3 fills and goes nowhere. That moment tells the player they
+# are not required to fill the whole pool - the anxiety this genre usually creates.
+id: 4
+name: Barnacles
+size: 6x5
+par: 6
+tide: 11
+source: r3c0
+grid:
+  .. .. .. .. .. ..
+  .. .. .. .. .. ..
+  .. .. L3 T0 I0 e3
+  e1 i1 L1 i0 .. ..
+  .. .. .. .. .. ..
+critters:
+  r2c5 starfish
+solution:
+  r3c2 cw2
+  r2c2 cw2
+  r2c3 cw1
+  r2c4 cw1
