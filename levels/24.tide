@@ -1,18 +1,25 @@
-# The last pool. Every rule the game has: a refusing arrow, an arrow you must aim
-# down, a corridor that only fills backwards, a cross serving three ways, and two
-# thirsts that each cost a dead-end branch. Nothing new is introduced - level 24
-# is the exam, not the lesson. The tide is generous on purpose.
+# The last pool, and a victory lap by design.
+#
+# Every rule the game has is on this board - a refusing arrow, an arrow to aim
+# down, a corridor that only fills backwards, a cross serving three ways, two
+# thirsts that each cost a dead-end branch - but most of the plumbing is already
+# laid. The board is the biggest in the game and the par is not: 13 against
+# level 23's 15, so difficulty peaks at 23 and this one sends the player off.
+#
+# It was par 20 in its first cut, which made it the hardest level in the game.
+# Ending a cozy puzzle on its hardest board is exactly the feeling Pillar 1
+# exists to prevent, so I pre-laid four tiles rather than shrink the pool.
 id: 24
 name: The Last Pool
 size: 7x6
-par: 20
-tide: 26
+par: 13
+tide: 19
 source: r2c0
 grid:
-  .. L3 T3 I0 L0 .. ..
+  .. L1 T1 I0 L0 .. ..
   .. I1 P1 .. O0 .. ..
-  e1 t3 o3 i1 x0 I0 L0
-  .. .. .. .. I1 .. I1
+  e1 t3 o3 i1 x0 I0 L2
+  .. .. .. .. I1 .. I0
   .. .. P0 I0 T0 .. e0
   .. .. .. .. e0 .. ..
 critters:
@@ -21,15 +28,11 @@ critters:
   r2c3 starfish
 solution:
   r1c1 cw1
-  r0c1 cw2
-  r0c2 cw2
   r1c2 cw1
   r0c3 cw1
   r0c4 cw2
   r1c4 cw2
   r2c5 cw1
-  r2c6 cw2
-  r3c6 cw1
   r3c4 cw1
   r4c4 cw2
   r4c3 cw1
