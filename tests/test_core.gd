@@ -27,6 +27,7 @@ func _eq(actual: Variant, expected: Variant, what: String) -> void:
 
 func run() -> int:
 	_test_tile_rotation()
+	_test_shape_rot()
 	_test_flow_basics()
 	_test_flow_oneway_and_sponge()
 	_test_level_io()
@@ -45,6 +46,47 @@ func run() -> int:
 
 
 # --- Tile ---------------------------------------------------------------------
+
+## shape_rot() is how the renderer picks a sprite and how far to turn it, and it is
+## DERIVED from the mask rather than remembered from the level file -- so it has to stay
+## right after the player rotates a tile, which is exactly where a remembered value rots.
+func _test_shape_rot() -> void:
+	_suite("shape_rot")
+
+	# Every rotation of every shape, walked by actually rotating the tile.
+	var expected := {
+		"i": [0b0101, 0b1010, 0b0101, 0b1010],
+		"l": [0b0011, 0b0110, 0b1100, 0b1001],
+		"t": [0b0111, 0b1110, 0b1101, 0b1011],
+		"e": [0b0001, 0b0010, 0b0100, 0b1000],
+	}
+	for letter in expected:
+		var masks: Array = expected[letter]
+		var tile := Tile.make(Tile.Kind.CHANNEL, masks[0])
+		for turns in 4:
+			_eq(tile.mask, masks[turns], "%s after %d turns has the right mask" % [letter, turns])
+			var got := tile.shape_rot()
+			_eq(got[0], letter, "%s after %d turns is still shape %s" % [letter, turns, letter])
+			# A straight repeats after two turns, so its reported rotation wraps with it.
+			_eq(got[1], turns % tile.rotation_period(),
+					"%s after %d turns reports rotation %d" % [letter, turns, turns % tile.rotation_period()])
+			tile.rotate_cw()
+
+	# A cross looks the same every way up, so it is always rotation 0 -- otherwise the
+	# renderer would turn a symmetric sprite for no reason and, with art, shimmer it.
+	_eq(Tile.make(Tile.Kind.CHANNEL, 0b1111).shape_rot(), ["x", 0], "cross is always ['x', 0]")
+
+	# Kind overrides shape: a sponge is a straight by mask and must not draw as one.
+	_eq(Tile.make(Tile.Kind.SPONGE, 0b0101).shape_rot(), ["p", 0], "sponge N,S is ['p', 0]")
+	_eq(Tile.make(Tile.Kind.SPONGE, 0b1010).shape_rot(), ["p", 1], "sponge E,W is ['p', 1]")
+
+	# A one-way's rotation is its exit side, not its mask: two arrows on the same N,S
+	# channel pointing opposite ways are different sprites and must not collapse.
+	_eq(Tile.make(Tile.Kind.ONEWAY, 0b0101, false, Tile.N).shape_rot(), ["o", Tile.N],
+			"one-way exiting N is ['o', N]")
+	_eq(Tile.make(Tile.Kind.ONEWAY, 0b0101, false, Tile.S).shape_rot(), ["o", Tile.S],
+			"one-way exiting S is ['o', S] on the same mask")
+
 
 func _test_tile_rotation() -> void:
 	_suite("tile rotation")

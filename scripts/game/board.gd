@@ -69,11 +69,15 @@ const KIND_PREFIX := {
 ## cannot be rotated: a corner facing NE and the same corner facing SW want different
 ## shading. One file per orientation is the artist's call to make, not mine to force.
 func _facing_key(tile: Tile) -> String:
+	return "%s_%s" % [KIND_PREFIX.get(tile.kind, "channel"), _sides_key(tile)]
+
+
+func _sides_key(tile: Tile) -> String:
 	var sides := ""
 	for dir in Tile.DIRS:
 		if tile.connects(dir):
 			sides += Tile.DIR_NAMES[dir]
-	return "%s_%s" % [KIND_PREFIX.get(tile.kind, "channel"), sides.to_lower()]
+	return sides.to_lower()
 
 
 func _load_art() -> void:
@@ -281,6 +285,15 @@ func _draw_tile(pos: Vector2i) -> void:
 	# engine is the fallback; the drawn placeholder is the fallback to that. Every level
 	# stays playable no matter how much of the set exists.
 	var state := "wet" if is_wet else "dry"
+
+	# A barnacled tile is its own sprite, not a clean tile with a sticker on it: the crust
+	# grows over the channel, so it cannot be composited after the fact.
+	if tile.locked:
+		var crust: Variant = art.get("locked_%s_%s" % [_sides_key(tile), state])
+		if crust != null:
+			_draw_sprite(crust, rect)
+			return
+
 	var sprite: Variant = art.get("%s_%s" % [_facing_key(tile), state])
 	if sprite != null:
 		_draw_sprite(sprite, rect)
