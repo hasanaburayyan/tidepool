@@ -47,7 +47,15 @@ func _initialize() -> void:
 
 	print("")
 	print("%d levels, %d warned, %d FAILED  (%.1fs)" % [files.size(), warned, failed, secs])
-	quit(1 if failed > 0 else 0)
+
+	# A warning is "I could not afford to prove this par minimal". That is a fine thing to
+	# carry on a pull request and an unacceptable thing to press onto a build: shipping a
+	# par no implementation has proven means a player may find a shorter route than the
+	# level claims. The v* export workflow sets TIDEPOOL_RELEASE=1 for exactly this.
+	var strict := OS.get_environment("TIDEPOOL_RELEASE") == "1"
+	if strict and warned > 0:
+		print("TIDEPOOL_RELEASE=1: %d warning(s) are failures at release time." % warned)
+	quit(1 if failed > 0 or (strict and warned > 0) else 0)
 
 
 func _tide_files(dir_path: String) -> Array[String]:
