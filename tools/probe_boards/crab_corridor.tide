@@ -1,0 +1,16 @@
+id: 80
+name: Crab In A Corridor
+size: 5x5
+par: 1
+tide: 7
+source: r2c0
+grid:
+  .. .. .. .. ..
+  .. .. .. .. ..
+  e1 i1 C1 i1 e3
+  .. .. .. .. ..
+  .. .. .. .. ..
+critters:
+  r2c4 starfish
+solution:
+  r2c2 cw1
