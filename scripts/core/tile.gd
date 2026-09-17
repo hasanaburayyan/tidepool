@@ -102,6 +102,44 @@ func can_exit_through(side: int) -> bool:
 	return true
 
 
+## Which base shape this tile is, and how many clockwise turns off base it currently sits.
+## Sprites are authored once in base orientation and rotated at draw time, so the letter
+## picks the image and the number picks the angle. Returns e.g. ["l", 2].
+##
+## This is derived from the mask rather than remembered from the level file, so it stays
+## correct after the player rotates a tile.
+func shape_rot() -> Array:
+	if kind == Kind.ONEWAY:
+		return ["o", out_dir]
+	var letter := "x"
+	var base := 0b1111
+	match _open_sides():
+		0:
+			return ["x", 0]  # EMPTY draws no shape; the caller has already returned.
+		1:
+			letter = "e"
+			base = 0b0001
+		2:
+			var straight := mask == 0b0101 or mask == 0b1010
+			letter = ("p" if kind == Kind.SPONGE else "i") if straight else "l"
+			base = 0b0101 if straight else 0b0011
+		3:
+			letter = "t"
+			base = 0b0111
+	for rot in 4:
+		if ((base << rot) | (base >> (4 - rot))) & 0b1111 == mask:
+			return [letter, rot]
+	return [letter, 0]
+
+
+func _open_sides() -> int:
+	var n := 0
+	for dir in DIRS:
+		if connects(dir):
+			n += 1
+	return n
+
+
 func clone() -> Tile:
 	return Tile.make(kind, mask, locked, out_dir)
 
