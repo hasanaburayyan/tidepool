@@ -1,0 +1,23 @@
+# SPONGE DEMONSTRATION LEVEL - trivially 3-star, not a puzzle.
+# A sponge is thirsty rock: it must end up wet, and it never passes water on.
+# So it always costs you a dead-end branch. Here the branch is one tile long and
+# the tee that feeds it is the only real decision. Same job level 13 does for the
+# arrow: introduce the symbol doing nothing surprising.
+id: 19
+name: Thirsty Rock
+size: 5x5
+par: 4
+tide: 10
+source: r2c0
+grid:
+  .. .. p0 .. ..
+  .. .. I1 .. ..
+  e1 i1 T1 I0 e3
+  .. .. .. .. ..
+  .. .. .. .. ..
+critters:
+  r2c4 starfish
+solution:
+  r2c2 cw2
+  r1c2 cw1
+  r2c3 cw1
