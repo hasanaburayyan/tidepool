@@ -11,9 +11,9 @@ What it checks, per level:
   2. SOLVE      - replaying `solution:` rescues every critter.        HARD FAIL if not.
   3. PAR        - par == total rotations in `solution:`.              HARD FAIL if not.
   4. TIDE       - tide == par + 5 (levels 1-12) or par + 6 (13+).     HARD FAIL if not.
-  5. OPTIMALITY - bounded IDDFS to depth par-1 with a node cap.
+  5. OPTIMALITY - bounded IDDFS to depth par-1, capped by nodes AND a wall clock.
                   shorter solution found -> HARD FAIL (the declared par is wrong).
-                  cap hit first          -> WARN, reported as "par unverified".
+                  budget spent first     -> WARN, reported as "par unverified".
                   search exhausted       -> par proven optimal.
 
 An unsolvable shipped level is structurally impossible if this runs in CI.
@@ -24,6 +24,7 @@ Exit code 0 = all levels valid (warnings allowed), 1 = at least one hard failure
 """
 
 import sys
+import time
 import pathlib
 
 # ---------------------------------------------------------------- directions
@@ -243,43 +244,55 @@ class Level:
 
     # -------------------------------------------------- bounded optimality
 
-    def shorter_solution_exists(self, limit, node_cap=2_000_000):
+    def shorter_solution_exists(self, limit, node_cap=5_000_000, time_budget=2.0):
         """IDDFS for any solution strictly shorter than `limit`.
-        Returns (found: bool, exhausted: bool). exhausted=False means we hit the cap."""
+        Returns (found: bool, exhausted: bool). exhausted=False means we gave up.
+
+        Bounded by BOTH a node cap and a wall clock. The wall clock is the one that
+        matters: this runs in CI on every level, and a gate that can hang is a gate
+        that gets switched off. Giving up is a WARN, never a failure, so trading
+        search depth for a predictable runtime costs us nothing we care about.
+        """
         keys = self.rotatables()
         periods = [PERIOD[self.tiles[p].shape] for p in keys]
         start = self.state_from_file()
-        nodes = [0]
-        capped = [False]
+        deadline = time.monotonic() + time_budget
 
-        def dfs(state, depth):
-            if nodes[0] >= node_cap:
-                capped[0] = True
-                return False
-            nodes[0] += 1
-            if self.solved(state):
-                return True
-            if depth == 0:
-                return False
-            for i, period in enumerate(periods):
-                for step in ((1,) if period == 2 else (1, -1)):
-                    nxt = list(state)
-                    nxt[i] = (nxt[i] + step) % period
-                    if dfs(tuple(nxt), depth - 1):
-                        return True
-            return False
-
-        for d in range(0, limit):
-            if dfs(start, d):
-                return True, not capped[0]
-            if capped[0]:
-                return False, False
+        # Breadth-first over rotation states, with a visited set. The obvious
+        # implementation here is iterative-deepening DFS, and it is a trap: without
+        # a visited set it re-walks the same states exponentially, and a five-tile
+        # level can outrun a two-second budget. BFS visits each distinct state once
+        # and finds the true minimum, so "proven optimal" now means it.
+        frontier = [start]
+        seen = {start}
+        nodes = 0
+        for depth in range(0, limit):
+            if not frontier:
+                return False, True          # whole reachable space explored
+            nxt_frontier = []
+            for state in frontier:
+                nodes += 1
+                if nodes % 1024 == 0 and (nodes >= node_cap or time.monotonic() > deadline):
+                    return False, False
+                if self.solved(state):
+                    return True, True       # a solution shorter than `limit` exists
+                if depth + 1 >= limit:
+                    continue                # no point expanding the last layer
+                for i, period in enumerate(periods):
+                    for step in ((1,) if period == 2 else (1, -1)):
+                        cand = list(state)
+                        cand[i] = (cand[i] + step) % period
+                        cand = tuple(cand)
+                        if cand not in seen:
+                            seen.add(cand)
+                            nxt_frontier.append(cand)
+            frontier = nxt_frontier
         return False, True
 
 
 # ------------------------------------------------------------------ driver
 
-def check(level):
+def check(level, budget=15.0):
     errors, warnings = [], []
     target = level.par_override if level.par_override is not None else level.par
 
@@ -306,19 +319,24 @@ def check(level):
 
     note = "par unchecked"
     if not errors:
-        found, exhausted = level.shorter_solution_exists(level.par)
+        found, exhausted = level.shorter_solution_exists(level.par, time_budget=budget)
         if found:
             errors.append("a SHORTER solution exists; declared par %d is wrong" % level.par)
         elif exhausted:
             note = "par %d proven optimal" % level.par
         else:
-            note = "par %d unverified (node cap hit)" % level.par
-            warnings.append("optimality search hit the node cap")
+            note = "par %d unverified (search budget spent)" % level.par
+            warnings.append("optimality search ran out of budget")
     return errors, warnings, note
 
 
 def main():
-    root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "levels")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    budget = 15.0
+    for a in sys.argv[1:]:
+        if a.startswith("--budget="):
+            budget = float(a.split("=", 1)[1])
+    root = pathlib.Path(args[0] if args else "levels")
     files = sorted(root.glob("*.tide"))
     if not files:
         print("no .tide files under %s" % root)
@@ -330,7 +348,7 @@ def main():
     for f in files:
         try:
             lvl = Level(f)
-            errors, warnings, note = check(lvl)
+            errors, warnings, note = check(lvl, budget)
         except Exception as exc:                       # noqa: BLE001 - report, don't crash
             print("  FAIL  %-12s %s: %s" % (f.name, type(exc).__name__, exc))
             hard += 1
