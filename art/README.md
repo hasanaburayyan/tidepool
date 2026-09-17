@@ -99,3 +99,22 @@ renderer draws nothing.
 `project.godot` sets `rendering/textures/canvas_textures/default_texture_filter=0`
 (Nearest) globally, which is what keeps pixel art crisp. Sprites must also be drawn at an
 **integer** scale - see the note on `TILE_SIZE` in the PR that introduced this directory.
+
+## The one-way arrow
+
+The engine lets *any* mask be a one-way — `level_io.gd` only requires an opening on
+`out_dir` — so the arrow is a **transparent overlay** composited onto whatever tile is
+underneath, not eleven more baked sprites. Named for its exit, because that is what the
+level format stores: `oneway_E_wet.png`.
+
+The chevron is drawn once pointing east and rotated into the other three facings by
+turning its *coordinates*, not its pixels. Rotating a coordinate is exact; rotating a
+rendered image re-samples it and rounds a crisp diagonal into mush.
+
+`png.py` grew 1-bit alpha for this (colour type 6). A canvas with nothing transparent
+still writes truecolour, so adding overlay support churned no already-shipped sprite.
+
+`ONEWAY_LAYOUT` in `build.py` is the teaching strip: two arrows, identical but for
+facing, one passing water and one refusing it. `build.flood` knows the one-way rule and
+`build.refusals` finds the refusing tile, so neither is something I asserted — the build
+fails if the strip stops showing exactly one refusal.
