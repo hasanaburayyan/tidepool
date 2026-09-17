@@ -341,7 +341,7 @@ def main() -> None:
             assert_states_match(mask, pal, locked=lock)
             prefix = "locked" if lock else "channel"
             for wet in (False, True):
-                path = os.path.join(TILE_OUT, "%s_%s_%s.png" % (prefix, name, "wet" if wet else "dry"))
+                path = os.path.join(TILE_OUT, "%s_%s_%s.png" % (prefix, name.lower(), "wet" if wet else "dry"))
                 tiles.render(mask, wet, pal, locked=lock).save(path)
                 written.append(path)
 
@@ -367,11 +367,11 @@ def main() -> None:
         raise SystemExit("FAIL: the teaching strip must show exactly one arrow refusing")
     for out_dir in "NESW":
         for wet in (False, True):
-            path = os.path.join(TILE_OUT, "oneway_%s_%s.png" % (out_dir, "wet" if wet else "dry"))
+            path = os.path.join(TILE_OUT, "oneway_%s_%s.png" % (out_dir.lower(), "wet" if wet else "dry"))
             tiles.render_arrow(out_dir, wet, pal).save(path)
             written.append(path)
             for style in REFUSED_STYLES:
-                path = os.path.join(PREVIEW_OUT, "oneway_%s_%s_refused_%s.png" % (out_dir, "wet" if wet else "dry", style))
+                path = os.path.join(PREVIEW_OUT, "oneway_%s_%s_refused_%s.png" % (out_dir.lower(), "wet" if wet else "dry", style))
                 tiles.render_arrow(out_dir, wet, pal, refused=style).save(path)
 
     options = build_refused_options(pal)
