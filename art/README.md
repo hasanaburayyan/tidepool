@@ -21,7 +21,7 @@ unchanged palette and `git status` is clean. That is the test that nothing drift
 | `png.py` | minimal PNG writer and an RGB canvas |
 | `tiles.py` | tile sprites, generated from a connection mask |
 | `build.py` | the entry point: writes sprites and contact sheets, and checks the rules |
-| `preview/` | contact sheets, including a greyscale one (generated) |
+| `preview/` | contact sheets, each with a greyscale twin (generated) |
 | `../assets/tiles/` | the shipped sprites (generated) |
 
 Generated PNGs are committed. Godot needs them at import time and a reviewer should be
@@ -30,8 +30,10 @@ able to see the art in a diff without running anything.
 ## The two rules, enforced
 
 **1. Nothing is communicated by hue alone.** A greyscale screenshot of any level must stay
-solvable. `build.py` emits `preview/strip_4x_greyscale.png` so this is checkable rather
-than asserted. This rule has already bitten once: Tidewater (luma 138) and Wet Sand (luma
+solvable. `build.py:assert_masks_distinct` desaturates every tile and fails the build if
+any two shapes collapse into the same picture, and the greyscale contact sheets
+(`preview/tiles_3x_greyscale.png`, `preview/junction_4x_greyscale.png`) let a reviewer
+check the same thing by eye. This rule has already bitten once: Tidewater (luma 138) and Wet Sand (luma
 157) are only 19/255 apart, so a wet channel and a dry one were nearly identical in
 greyscale - and wet-vs-dry is the most important state in the game. The fix is that wet
 water carries Shimmer *texture* (a gloss line along the bank plus dashed ripples) while the
@@ -50,6 +52,37 @@ corner, tee and cross are not new code, just new masks. Add the mask name to `TI
 in `build.py`. Masks use the engine's bit order from `scripts/core/tile.gd` (N, E, S, W)
 and a sprite is named for its openings in that order, so `channel_NES_dry.png` and an
 engine mask can be checked against each other by reading them.
+
+Rotations are baked as separate PNGs instead of being left to a runtime `rotation` on the
+sprite. Rotating a pixel sprite by 90 degrees re-samples it, and worse, the upper-left
+gloss would rotate with the tile - a level would end up lit by four different suns. Eleven
+shipped masks: two straights, four elbows, four tees, one cross.
+
+## The locked (barnacled) variant
+
+`tiles.render(mask, wet, palette, locked=True)` crusts the rock with barnacles. Every mask
+has one, written as `locked_NES_wet.png` alongside `channel_NES_wet.png`.
+
+Locked is a **texture, never a tint**. A shell is a ring of four Deep Umber pixels around a
+centre left as bare rock. Rings are placed by distance from the channel rather than by
+coordinate, so they crowd the waterline on any shape, and they thin out as the rock dries
+(1 in 5 at two pixels from the bank, 1 in 11 at five). Placement hashes absolute pixel
+position, the same field the rock grain uses, so two locked tiles side by side crust
+continuously instead of repeating a stamp.
+
+`build.py:assert_locked_is_texture` holds the variant to that claim: barnacles may not
+touch the channel (so the water is identical and the shader tween is unaffected) or the
+1px outline (so the silhouette is pixel-for-pixel the same tile), and there must be at
+least 20 of them, because a crust of four pixels is not a signal. A shell that would spill
+onto the bank is dropped whole rather than clipped - half a ring is a smudge.
+
+## The junction scene
+
+`preview/junction_4x.png` is a 3x3 pool built from `JUNCTION_LAYOUT` in `build.py`. Which
+tiles are wet is not a list I typed: `build.py:flood` walks the layout with the same
+both-sides-must-open rule the engine uses, so the picture cannot claim a connection the
+simulation would not make. Two tiles are turned the wrong way and stay dry, which is what
+a player sees the instant before they rotate one.
 
 ## In-engine preview
 

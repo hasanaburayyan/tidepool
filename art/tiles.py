@@ -129,9 +129,11 @@ def render(mask: int, wet: bool, pal: dict, locked: bool = False) -> Canvas:
             if _is_speckle(x, y):
                 img[x, y] = pal["rock_speckle"]
 
+    # Barnacles go down before the bank, never over it: every shell sits at least two
+    # pixels out from the channel, so the Deep Umber outline stays exactly 1px wide.
     if locked:
         for (x, y) in _barnacles(channel, bank):
-            img[x, y] = pal["rock_speckle"]
+            img[x, y] = pal["outline"]
 
     for (x, y) in bank:
         img[x, y] = pal["outline"]
@@ -159,6 +161,67 @@ def render(mask: int, wet: bool, pal: dict, locked: bool = False) -> Canvas:
     return img
 
 
+## How far out from the bank a barnacle shell may sit. 1 is banned: a shell touching the
+## bank would thicken the 1px Deep Umber outline into a smear and the channel would stop
+## reading as a clean cut. 5 is as far as the rock goes on a cross tile before it runs out.
+BARNACLE_MIN_DEPTH = 2
+BARNACLE_MAX_DEPTH = 5
+
+
+def _rock_depth(channel: set, bank: set) -> dict:
+    """How far each rock pixel sits from the channel, by breadth-first fill outward.
+
+    The mirror of `_depth_map`: that one measures into the water, this one measures into
+    the stone. Both exist so texture can be placed by distance from the channel rather
+    than by hard-coded coordinates, which is what lets one routine crust a straight, an
+    elbow and a cross without knowing which it is looking at.
+    """
+    depth = {p: 1 for p in bank}
+    frontier = list(bank)
+    while frontier:
+        nxt = []
+        for (x, y) in frontier:
+            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+                p = (x + dx, y + dy)
+                if (0 <= p[0] < SIZE and 0 <= p[1] < SIZE
+                        and p not in channel and p not in depth):
+                    depth[p] = depth[(x, y)] + 1
+                    nxt.append(p)
+        frontier = nxt
+    return depth
+
+
 def _barnacles(channel: set, bank: set) -> set:
-    """Placeholder hook for the locked variant; its own PR fills this in."""
-    return set()
+    """The locked tile's crust: a rim of little shells clinging to the rock by the water.
+
+    Locked is a *texture*, never a tint. The whole variant is these pixels - same
+    silhouette, same palette, same channel - so it survives a greyscale screenshot, which
+    a darker rock would not: the player is being told "this tile will not turn", and that
+    has to be readable without colour.
+
+    A shell is a ring: four Deep Umber pixels around a centre left as bare rock, so the
+    hole in the middle reads as the opening of a limpet rather than as a blob. Rings are
+    placed by distance from the channel, not by coordinates, so they crowd the waterline
+    on any shape - which is also where real barnacles live, below the dry line.
+
+    Placement is a hash of absolute pixel position, the same field the rock grain uses, so
+    two locked tiles side by side crust continuously instead of repeating a stamp.
+    """
+    depth = _rock_depth(channel, bank)
+    shells = set()
+    for (x, y), d in depth.items():
+        if not (BARNACLE_MIN_DEPTH <= d <= BARNACLE_MAX_DEPTH):
+            continue
+        h = (x * 2654435761 + y * 40503) & 0xFFFFFFFF
+        h = (h ^ (h >> 15)) * 2246822519 & 0xFFFFFFFF
+        # Denser at the waterline, thinning out as the rock dries: 1 in 5 at depth 2, 1 in
+        # 11 at depth 5. The gradient is what makes it read as growth rather than noise.
+        if h % (2 * d + 1) != 0:
+            continue
+        ring = {(x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y)}
+        # A shell that would spill onto the bank is dropped whole rather than clipped: half
+        # a ring is a smudge, and a smudge on the outline is exactly what rule 1 forbids.
+        if any(p in channel or depth.get(p, 0) < BARNACLE_MIN_DEPTH for p in ring):
+            continue
+        shells |= ring
+    return shells
