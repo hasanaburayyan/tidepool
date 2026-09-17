@@ -282,6 +282,33 @@ func _test_validator() -> void:
 	_check(r2["solved"], "a two move level is solved")
 	_eq(r2["moves"], 2, "and the minimum really is two")
 
+	_suite("validator counts clicks, not clockwise steps")
+	# The corner at r0c0 starts at L3 = {W,N} and has to reach {S,W} to feed the critter
+	# below it. That is three clockwise steps, or one right-click, and the player is only
+	# charged for the right-click. Level 07 is built on exactly this; before the fix the
+	# search charged three and called a one-tide level unsolvable.
+	var ccw := TideFormat.parse("id: 1\nname: ccw\nsize: 2x2\npar: 1\ntide: 6\n"
+			+ "source: r0c0\ngrid:\n  L3 ..\n  i0 ..\ncritters:\n  r1c0 crab\n", "ccw")
+	_check(ccw["ok"], "the right-click level parses: %s" % [ccw["errors"]])
+	if ccw["ok"]:
+		var rc := Validator.solve(ccw["grid"], 3)
+		_check(rc["solved"], "a right-click level is solved")
+		_eq(rc["moves"], 1, "three clockwise steps cost one click")
+
+	_suite("one-way and sponge glyphs parse")
+	var glyphs := TideFormat.parse("id: 1\nname: g\nsize: 3x1\npar: 1\ntide: 6\n"
+			+ "source: r0c0\ngrid:\n  e1 o1 p0\ncritters:\n  r0c1 crab\n", "glyphs")
+	_check(glyphs["ok"], "a level using O and P parses: %s" % [glyphs["errors"]])
+	if glyphs["ok"]:
+		var gg: Grid = glyphs["grid"]
+		var oneway := gg.at(Vector2i(1, 0))
+		_eq(oneway.kind, Tile.Kind.ONEWAY, "O is a one-way")
+		_eq(oneway.out_dir, Tile.E, "the digit is the side water leaves by")
+		_check(not oneway.can_enter_from(Tile.E), "water is refused at the arrow end")
+		_check(oneway.can_enter_from(Tile.W), "and accepted at the other end")
+		_eq(gg.at(Vector2i(2, 0)).kind, Tile.Kind.SPONGE, "P is a sponge")
+		_check(not gg.at(Vector2i(2, 0)).can_exit_through(Tile.N), "a sponge never emits")
+
 	_suite("validator reports impossible")
 	var impossible := _grid_from(["-.-"], Vector2i(0, 0), Tile.W)
 	impossible.at(Vector2i(2, 0)).kind = Tile.Kind.CHANNEL
@@ -314,9 +341,9 @@ func _test_debug_levels() -> void:
 ## in someone's head.
 func _test_shipping_levels() -> void:
 	_suite("shipping levels 1-5")
-	var names := [
-		"01_first_pool", "02_two_turns", "03_fork", "04_barnacles", "05_second_pool",
-	]
+	# The Game Director owns levels/, named NN.tide. This suite keeps the first five
+	# honest on every run; tools/verify_levels.gd sweeps all of them and is what CI runs.
+	var names := ["01", "02", "03", "04", "05"]
 	for name in names:
 		var path := "res://levels/%s.tide" % name
 		var r := TideFormat.load_file(path)
@@ -348,6 +375,7 @@ func _test_shipping_levels() -> void:
 			_eq(solved["moves"], grid.par, "%s: par is the cheapest solution" % name)
 
 		# 4. Tide is a move budget with room to fumble (design doc 2.1).
-		_check(grid.tide >= grid.par + 5, "%s: tide %d leaves room over par %d" % [name, grid.tide, grid.par])
+		var slack := 5 if grid.id <= 12 else 6
+		_eq(grid.tide, grid.par + slack, "%s: tide is par+%d exactly" % [name, slack])
 		print("      %-16s %dx%d  par %d  tide %d  critters %d  nodes %d" % [
 			name, grid.width, grid.height, grid.par, grid.tide, grid.critters.size(), solved["nodes"]])

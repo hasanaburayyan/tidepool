@@ -18,6 +18,16 @@ const BASE_SHAPES := {
 	"T": 0b0111,  # N,E,S
 	"X": 0b1111,  # all four
 	"E": 0b0001,  # N -- a cap, one opening
+	"O": 0b0101,  # N,S -- one-way; the digit is the side water EXITS by
+	"P": 0b0101,  # N,S -- sponge; drinks from either end, emits from neither
+	"C": 0b0101,  # N,S -- crab tile; a plain straight until crab walking lands
+}
+
+## Shape letter -> tile kind. Anything not listed is an ordinary channel.
+const SHAPE_KINDS := {
+	"O": Tile.Kind.ONEWAY,
+	"P": Tile.Kind.SPONGE,
+	"C": Tile.Kind.CRAB,
 }
 
 const ROCK := ".."
@@ -188,7 +198,10 @@ static func _cell_to_tile(cell: String) -> Tile:
 	var digit := cell[1]
 	if not digit.is_valid_int():
 		return null
-	var tile := Tile.make(Tile.Kind.CHANNEL, int(base), locked)
+	# A one-way starts with its arrow pointing N, so rotating it by the digit leaves
+	# out_dir == digit: the digit is literally the side water leaves by.
+	var kind: Tile.Kind = SHAPE_KINDS.get(letter.to_upper(), Tile.Kind.CHANNEL)
+	var tile := Tile.make(kind, int(base), locked, Tile.N)
 	tile.rotate_cw(int(digit))
 	return tile
 

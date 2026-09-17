@@ -55,13 +55,19 @@ static func _search(grid: Grid, candidates: Array[int], from: int, remaining: in
 		# but we do need at least one move per tile we are still going to visit.
 		var idx: int = candidates[i]
 		var tile := grid.tiles[idx]
-		var max_turns: int = mini(tile.rotation_period() - 1, remaining)
-		for turns in range(1, max_turns + 1):
+		var period: int = tile.rotation_period()
+		for turns in range(1, period):
+			# Right-click turns the other way, so three clockwise steps is one click, not
+			# three. The player pays in clicks; the search must count the same currency or
+			# it will declare a level unsolvable that a right-click solves (level 07).
+			var clicks: int = mini(turns, period - turns)
+			if clicks > remaining:
+				continue
 			tile.rotate_cw(turns)
-			var found := _search(grid, candidates, i + 1, remaining - turns, plan, state)
+			var found := _search(grid, candidates, i + 1, remaining - clicks, plan, state)
 			tile.rotate_cw(-turns)
 			if found:
-				plan.append({"pos": grid.pos_of(idx), "turns": turns})
+				plan.append({"pos": grid.pos_of(idx), "turns": turns, "clicks": clicks})
 				return true
 			if state["exhausted"]:
 				return false
