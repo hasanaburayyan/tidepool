@@ -1,0 +1,26 @@
+# Teaches: every sponge costs you a split. Two sponges, two dead-end branches,
+# and a critter at the far end of the spine - so the player has to spend two tees
+# on water that goes nowhere useful and still have budget left to finish the run.
+# This is the first level where the cheapest route to the critter is the wrong plan.
+id: 20
+name: Two Thirsts
+size: 7x5
+par: 9
+tide: 15
+source: r2c0
+grid:
+  .. .. p0 .. p0 .. ..
+  .. .. I1 .. I1 .. ..
+  e1 I0 T1 I0 T1 I0 e3
+  .. .. .. .. .. .. ..
+  .. .. .. .. .. .. ..
+critters:
+  r2c6 starfish
+solution:
+  r2c1 cw1
+  r2c2 cw2
+  r1c2 cw1
+  r2c3 cw1
+  r2c4 cw2
+  r1c4 cw1
+  r2c5 cw1
