@@ -114,6 +114,18 @@ rendered image re-samples it and rounds a crisp diagonal into mush.
 `png.py` grew 1-bit alpha for this (colour type 6). A canvas with nothing transparent
 still writes truecolour, so adding overlay support churned no already-shipped sprite.
 
+**Refused is `gate`**, chosen by the Director from three rendered options. A Deep Umber
+bar shuts across the channel behind the chevron. `grey` was disqualified by its own
+render: a refused tile is *dry*, and the dry channel floor is Wet Sand - the same colour
+a greyed chevron would be, so it vanished exactly where it needed to be read. It also
+said the wrong thing; greying out means *disabled*, and a refusing arrow is working
+perfectly, it is the water that is wrong. `backwash` reads as motion, and refusal is a
+steady state a player may stare at for thirty seconds. The losers are still generated
+into `preview/oneway_options_4x.png` so the comparison outlives the argument.
+
+Shipped as `oneway_<exit>_<state>_refused.png`; the engine prefers it and falls back to
+the plain arrow.
+
 `ONEWAY_LAYOUT` in `build.py` is the teaching strip: two arrows, identical but for
 facing, one passing water and one refusing it. `build.flood` knows the one-way rule and
 `build.refusals` finds the refusing tile, so neither is something I asserted — the build

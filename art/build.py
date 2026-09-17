@@ -276,7 +276,11 @@ def build_junction_scene(pal: dict) -> Canvas:
 ## read is which way the chevron points.
 ONEWAY_LAYOUT = [["EW", "EW>E", "EW", "EW>W", "EW"]]
 ONEWAY_SOURCE = (0, 0)
+## The three put in front of the Director, and the one she chose. The losers stay in the
+## list so the options sheet keeps rendering: the next person to ask "why a gate?" gets to
+## see the same comparison rather than take my word for it.
 REFUSED_STYLES = ["gate", "grey", "backwash"]
+REFUSED_CHOICE = "gate"
 
 
 def render_cell(cell: str, wet: bool, pal: dict, refused: str = "") -> Canvas:
@@ -370,9 +374,13 @@ def main() -> None:
             path = os.path.join(TILE_OUT, "oneway_%s_%s.png" % (out_dir.lower(), "wet" if wet else "dry"))
             tiles.render_arrow(out_dir, wet, pal).save(path)
             written.append(path)
-            for style in REFUSED_STYLES:
-                path = os.path.join(PREVIEW_OUT, "oneway_%s_%s_refused_%s.png" % (out_dir.lower(), "wet" if wet else "dry", style))
-                tiles.render_arrow(out_dir, wet, pal, refused=style).save(path)
+            # The refused sprite the engine looks for before falling back to the plain
+            # arrow. Maren picked `gate`: a refusing arrow is working perfectly - it is the
+            # water that is wrong - and greying out says "disabled", which is the one thing
+            # this sprite must never say.
+            path = os.path.join(TILE_OUT, "oneway_%s_%s_refused.png" % (out_dir.lower(), "wet" if wet else "dry"))
+            tiles.render_arrow(out_dir, wet, pal, refused=REFUSED_CHOICE).save(path)
+            written.append(path)
 
     options = build_refused_options(pal)
     scaled(options, 4).save(os.path.join(PREVIEW_OUT, "oneway_options_4x.png"))
