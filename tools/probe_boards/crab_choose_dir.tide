@@ -1,0 +1,20 @@
+id: 82
+name: Crab Pushed Two Ways
+size: 5x5
+par: 2
+tide: 8
+source: r2c0
+grid:
+  .. .. I0 .. ..
+  .. .. I0 .. ..
+  e1 I1 x0 I1 e3
+  .. .. I0 .. ..
+  .. .. e0 .. ..
+critters:
+  r2c4 starfish
+  r4c2 anemone
+crabs:
+  r2c2
+solution:
+  r2c1 cw1
+  r2c3 cw1
