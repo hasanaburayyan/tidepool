@@ -69,6 +69,12 @@ const KIND_PREFIX := {
 ## cannot be rotated: a corner facing NE and the same corner facing SW want different
 ## shading. One file per orientation is the artist's call to make, not mine to force.
 func _facing_key(tile: Tile) -> String:
+	if tile.kind == Tile.Kind.ONEWAY:
+		# An arrow is keyed by the side water LEAVES through, not by its connection set:
+		# two one-ways on the same N,S channel pointing opposite ways are different tiles
+		# and a set of openings cannot tell them apart (Maren, and the .tide format agrees
+		# -- the rotation digit is the exit side).
+		return "oneway_%s" % Tile.DIR_NAMES[tile.out_dir].to_lower()
 	return "%s_%s" % [KIND_PREFIX.get(tile.kind, "channel"), _sides_key(tile)]
 
 
