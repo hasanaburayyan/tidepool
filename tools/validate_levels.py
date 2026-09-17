@@ -264,6 +264,23 @@ class Level:
         most once, so this terminates, and the answer depends only on the board and
         the rotations. Stateless recompute survives, same as every other mechanic.
         """
+        keys = self.rotatables()
+        rot = {p: state[i] for i, p in enumerate(keys)}
+
+        def rot_of(p):
+            return rot.get(p, self.tiles[p].rot)
+
+        def channel_continues(here, d):
+            """Can a crab standing on `here` be pushed one more tile in direction d?"""
+            nxt = (here[0] + DELTA[d][0], here[1] + DELTA[d][1])
+            if nxt not in self.tiles:
+                return None
+            if not self.tiles[here].can_exit(d, rot_of(here)):
+                return None
+            if not self.tiles[nxt].can_enter(OPPOSITE[d], rot_of(nxt)):
+                return None
+            return nxt
+
         crabs = set(self.crabs) | {p for p, t in self.tiles.items() if t.shape == "C"}
         settled = set()
         for _ in range(len(crabs) + 1):
@@ -272,14 +289,20 @@ class Level:
             for c in sorted(crabs - settled):
                 if c not in wet or c not in entry:
                     continue                  # not reached yet, or it is the source
-                dr, dc = DELTA[OPPOSITE[entry[c]]]
-                dest = (c[0] + dr, c[1] + dc)
-                if dest in self.tiles and dest not in crabs:
-                    crabs.discard(c)
-                    crabs.add(dest)
-                    settled.add(dest)
-                else:
-                    settled.add(c)            # nowhere to walk; it stays and waves
+                # The tide does not nudge a crab one tile; it pushes it along the
+                # channel until something stops it, and there it parks. That is the
+                # whole point: the player shapes the channel to choose where the
+                # crab ends up, instead of watching a blockage shuffle one step.
+                d = OPPOSITE[entry[c]]
+                pos = c
+                while True:
+                    nxt = channel_continues(pos, d)
+                    if nxt is None or nxt in crabs:
+                        break
+                    pos = nxt
+                crabs.discard(c)
+                crabs.add(pos)
+                settled.add(pos)              # parked; it stays and waves from here
                 stepped = True
             if not stepped:
                 break
@@ -365,8 +388,28 @@ def check(level, budget=15.0):
     if not level.solved(state):
         w = level.wet(state)
         missed = ["r%dc%d" % p for p, _ in level.critters if p not in w]
-        errors.append("UNSOLVED after replaying solution; stranded critters: %s"
-                      % ", ".join(missed))
+        thirsty = ["r%dc%d" % p for p, t in level.tiles.items()
+                   if t.shape == "P" and p not in w]
+        parts = []
+        if missed:
+            parts.append("stranded critters: %s" % ", ".join(missed))
+        if thirsty:
+            parts.append("dry sponges: %s" % ", ".join(sorted(thirsty)))
+        errors.append("UNSOLVED after replaying solution; %s" % "; ".join(parts))
+
+        # Marlow's ask, and a fair one: "you walled off the critter" is a far better
+        # message than "level 27 is unsolvable" once you have already authored it.
+        # If lifting the sponges out would have let the declared solution through,
+        # the sponge placement is the bug, not the routing.
+        if missed and any(t.shape == "P" for t in level.tiles.values()):
+            kept = dict(level.tiles)
+            level.tiles = {p: t for p, t in level.tiles.items() if t.shape != "P"}
+            freed = all(p in level.wet(state) for p, _ in level.critters)
+            level.tiles = kept
+            if freed:
+                errors.append("^ a sponge is walling off a critter: every critter is "
+                              "reachable once the sponges are lifted out, so move the "
+                              "sponge off the route rather than re-routing the level")
 
     if moves != level.par:
         errors.append("par is %d but the solution is %d rotations" % (level.par, moves))
