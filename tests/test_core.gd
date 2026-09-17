@@ -28,6 +28,7 @@ func _eq(actual: Variant, expected: Variant, what: String) -> void:
 func run() -> int:
 	_test_tile_rotation()
 	_test_shape_rot()
+	_test_refusing()
 	_test_flow_basics()
 	_test_flow_oneway_and_sponge()
 	_test_level_io()
@@ -86,6 +87,36 @@ func _test_shape_rot() -> void:
 			"one-way exiting N is ['o', N]")
 	_eq(Tile.make(Tile.Kind.ONEWAY, 0b0101, false, Tile.S).shape_rot(), ["o", Tile.S],
 			"one-way exiting S is ['o', S] on the same mask")
+
+
+## Refusal is invisible in the wet set -- water simply is not there -- so the board needs
+## to be told which arrows are doing the turning away. Levels 14, 16, 17 and 18 depend on
+## the player seeing it, and a silent refusal reads as a bug in the flow.
+func _test_refusing() -> void:
+	_suite("refusing")
+
+	# Source, then an arrow pointing back WEST at it: water reaches the arrow's mouth and
+	# is refused. This is the shape level 14 is built on.
+	var blocked := TideFormat.parse("id: 1\nname: refuse\nsize: 3x1\npar: 1\ntide: 6\n"
+			+ "source: r0c0\ngrid:\n  i1 o3 i1\ncritters:\n  r0c2 crab\n", "refuse")
+	_check(blocked["ok"], "the refusing board parses: %s" % [blocked["errors"]])
+	if blocked["ok"]:
+		var grid: Grid = blocked["grid"]
+		var wet := Flow.compute(grid)
+		var turned := Flow.refusing(grid, wet)
+		_eq(turned.has(grid.index(Vector2i(1, 0))), true, "an arrow facing the water refuses")
+		_eq(wet.has(grid.index(Vector2i(2, 0))), false, "and nothing flows past it")
+
+	# The same board with the arrow turned around: water enters and passes through, so the
+	# arrow is working rather than blocking and must NOT be drawn as refusing.
+	var flowing := TideFormat.parse("id: 1\nname: pass\nsize: 3x1\npar: 1\ntide: 6\n"
+			+ "source: r0c0\ngrid:\n  i1 o1 i1\ncritters:\n  r0c2 crab\n", "pass")
+	_check(flowing["ok"], "the flowing board parses: %s" % [flowing["errors"]])
+	if flowing["ok"]:
+		var grid2: Grid = flowing["grid"]
+		var wet2 := Flow.compute(grid2)
+		_eq(Flow.refusing(grid2, wet2).is_empty(), true, "an arrow water flows through does not refuse")
+		_eq(wet2.has(grid2.index(Vector2i(2, 0))), true, "and the water gets through")
 
 
 func _test_tile_rotation() -> void:
