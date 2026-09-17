@@ -22,6 +22,16 @@ jobs:
           mv /root/.local/share/godot/export_templates/* ~/.local/share/godot/export_templates/ 2>/dev/null || true
       - name: Import project
         run: godot --headless --path . --import || true
+
+      # Stricter than the PR gate on purpose. On a pull request an unproven par is a
+      # warning; on something we are about to hand a player it is a failure, because
+      # shipping a par no implementation has proven means the level may be beatable
+      # in fewer moves than it claims.
+      - name: Verify every level (release strictness)
+        env:
+          TIDEPOOL_RELEASE: "1"
+          TIDEPOOL_NODE_BUDGET: "60000000"
+        run: godot --headless --path . --script res://tools/verify_levels.gd -- res://levels
       - name: Export Linux
         run: |
           mkdir -p build/linux

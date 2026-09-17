@@ -8,7 +8,10 @@ extends Node2D
 ## The tide is a MOVE budget, not a clock (design doc §2.1): one rotation costs one unit,
 ## thinking is free, and running out is never a fail screen -- the tide comes back in.
 
-const TILE_SIZE := 72
+## 64, not 72, so Cove's 32 px sprites land at exactly 2x. Pixel art at a fractional
+## scale under a Nearest filter drops and doubles rows of pixels; 2x is the whole point.
+## The largest board we ship is 7x6, so 7*64 + margins still fits the 960x640 viewport.
+const TILE_SIZE := 64
 const MARGIN := Vector2(40, 108)
 const LEVEL_DIR := "res://levels"
 ## How long a newly wet tile flashes. Flow itself is an instant BFS recompute; only the
@@ -46,7 +49,68 @@ var reset_button := Rect2()
 @onready var _font: Font = ThemeDB.fallback_font
 
 
+## Art the artist has landed, keyed "i_wet", "overlay_locked", "crab_rescued". Anything
+## absent falls back to the placeholder shapes, so sprites can arrive ONE AT A TIME and be
+## seen in the game the same day instead of waiting for a complete sheet.
+## Naming and sizes are the contract in tidepool-engineering §9.
+var art: Dictionary = {}
+
+
+const KIND_PREFIX := {
+	Tile.Kind.CHANNEL: "channel",
+	Tile.Kind.CRAB: "channel",
+	Tile.Kind.SPONGE: "sponge",
+	Tile.Kind.ONEWAY: "oneway",
+}
+
+
+## The name of the sprite for this tile's exact orientation, e.g. "channel_nesw".
+## Preferred over the base-shape name because a tileset that is lit from one direction
+## cannot be rotated: a corner facing NE and the same corner facing SW want different
+## shading. One file per orientation is the artist's call to make, not mine to force.
+func _facing_key(tile: Tile) -> String:
+	if tile.kind == Tile.Kind.ONEWAY:
+		# An arrow is keyed by the side water LEAVES through, not by its connection set:
+		# two one-ways on the same N,S channel pointing opposite ways are different tiles
+		# and a set of openings cannot tell them apart (Maren, and the .tide format agrees
+		# -- the rotation digit is the exit side).
+		return "oneway_%s" % Tile.DIR_NAMES[tile.out_dir].to_lower()
+	return "%s_%s" % [KIND_PREFIX.get(tile.kind, "channel"), _sides_key(tile)]
+
+
+func _sides_key(tile: Tile) -> String:
+	var sides := ""
+	for dir in Tile.DIRS:
+		if tile.connects(dir):
+			sides += Tile.DIR_NAMES[dir]
+	return sides.to_lower()
+
+
+func _load_art() -> void:
+	for dir_path in ["res://assets/tiles", "res://assets/critters"]:
+		var dir := DirAccess.open(dir_path)
+		if dir == null:
+			continue
+		for file_name in dir.get_files():
+			# Godot hands us "x.png.import" in an exported build; the resource is "x.png".
+			var clean := file_name.trim_suffix(".import")
+			if not clean.ends_with(".png"):
+				continue
+			var tex := load(dir_path.path_join(clean))
+			if tex is Texture2D:
+				art[clean.get_basename().to_lower()] = tex
+
+
+## Draws a base-orientation sprite turned `turns` quarter-turns clockwise about its centre.
+func _draw_sprite(tex: Texture2D, rect: Rect2, turns: int = 0) -> void:
+	var size := Vector2(TILE_SIZE, TILE_SIZE)
+	draw_set_transform(rect.get_center(), turns * TAU * 0.25, Vector2.ONE)
+	draw_texture_rect(tex, Rect2(-size * 0.5, size), false)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
 func _ready() -> void:
+	_load_art()
 	levels = _find_levels()
 	if levels.is_empty():
 		push_error("no .tide levels found in %s" % LEVEL_DIR)
@@ -223,6 +287,31 @@ func _draw_tile(pos: Vector2i) -> void:
 	if tile.kind == Tile.Kind.EMPTY:
 		return
 
+	# Art in this tile's exact orientation wins; a base-orientation image turned by the
+	# engine is the fallback; the drawn placeholder is the fallback to that. Every level
+	# stays playable no matter how much of the set exists.
+	var state := "wet" if is_wet else "dry"
+
+	# A barnacled tile is its own sprite, not a clean tile with a sticker on it: the crust
+	# grows over the channel, so it cannot be composited after the fact.
+	if tile.locked:
+		var crust: Variant = art.get("locked_%s_%s" % [_sides_key(tile), state])
+		if crust != null:
+			_draw_sprite(crust, rect)
+			return
+
+	var sprite: Variant = art.get("%s_%s" % [_facing_key(tile), state])
+	if sprite != null:
+		_draw_sprite(sprite, rect)
+		_draw_locked_pips(tile, rect)
+		return
+	var shape_rot := tile.shape_rot()
+	sprite = art.get("%s_%s" % [shape_rot[0], state])
+	if sprite != null:
+		_draw_sprite(sprite, rect, shape_rot[1])
+		_draw_locked_pips(tile, rect)
+		return
+
 	# The channel is a stub from the tile centre out to each open side, so the shape of
 	# the pipe is readable at a glance. Pillar two: no hidden state.
 	var centre := rect.get_center()
@@ -247,10 +336,19 @@ func _draw_tile(pos: Vector2i) -> void:
 		_:
 			pass
 
-	if tile.locked:
-		# Barnacles: corner pips so locked tiles read as "do not bother".
-		draw_circle(rect.position + Vector2(10, 10), 5.0, LOCKED)
-		draw_circle(rect.end - Vector2(10, 10), 5.0, LOCKED)
+	_draw_locked_pips(tile, rect)
+
+
+func _draw_locked_pips(tile: Tile, rect: Rect2) -> void:
+	if not tile.locked:
+		return
+	var overlay: Variant = art.get("overlay_locked")
+	if overlay != null:
+		_draw_sprite(overlay, rect)
+		return
+	# Barnacles: corner pips so locked tiles read as "do not bother".
+	draw_circle(rect.position + Vector2(10, 10), 5.0, LOCKED)
+	draw_circle(rect.end - Vector2(10, 10), 5.0, LOCKED)
 
 
 func _draw_arrow(centre: Vector2, dir: int, colour: Color) -> void:
@@ -263,6 +361,11 @@ func _draw_arrow(centre: Vector2, dir: int, colour: Color) -> void:
 func _draw_critter(i: int) -> void:
 	var critter: Dictionary = grid.critters[i]
 	var rect := _tile_rect(critter["pos"])
+	var state := "rescued" if rescued.has(i) else "stranded"
+	var sprite: Variant = art.get("%s_%s" % [critter.get("type", "crab"), state])
+	if sprite != null:
+		_draw_sprite(sprite, rect)
+		return
 	draw_circle(rect.get_center(), 14.0, CRITTER_SAFE if rescued.has(i) else CRITTER)
 	var label: String = String(critter["type"]).substr(0, 1).to_upper()
 	draw_string(_font, rect.get_center() + Vector2(-5, 5), label, 0, -1, 14, TEXT)
