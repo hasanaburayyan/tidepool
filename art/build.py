@@ -20,10 +20,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TILE_OUT = os.path.join(ROOT, "assets", "tiles")
 PREVIEW_OUT = os.path.join(ROOT, "art", "preview")
 
-## Shipping this PR: the straight channel only. tiles.render() already draws corner, tee
-## and cross from the same masks; they land in their own PRs with their own review, per
-## the Director's one-family-per-PR rule.
-TILE_MASKS = ["EW", "NS"]
+## Every rock tile that routes water, as a connection mask. These are not seven drawings;
+## they are one drawing routine given ten different sets of openings. Adding a shape to
+## Tidepool is adding a string to this list.
+##
+## Rotations are baked as separate PNGs rather than left to a runtime `rotation` on the
+## sprite: a 90-degree rotation of a pixel sprite re-samples it, and the upper-left gloss
+## would rotate with the tile so a level would end up lit from four different suns.
+STRAIGHT_MASKS = ["EW", "NS"]
+CORNER_MASKS = ["NE", "ES", "SW", "NW"]
+TEE_MASKS = ["NES", "ESW", "NSW", "NEW"]
+CROSS_MASKS = ["NESW"]
+TILE_MASKS = STRAIGHT_MASKS + CORNER_MASKS + TEE_MASKS + CROSS_MASKS
 
 
 def load_palette() -> dict:
@@ -77,6 +85,92 @@ def assert_states_match(mask: int, pal: dict) -> None:
     print("  ok   %-4s dry/wet differ on exactly %d channel pixels" % (tiles.name_from_mask(mask), len(channel)))
 
 
+def assert_masks_distinct(pal: dict) -> None:
+    """Rule 1, as an assertion instead of a promise.
+
+    Strip the colour out of every tile and they must all still be different pictures. If
+    two shapes ever collapse into the same greyscale image, a colourblind player is being
+    asked to guess which way the water goes, and the build stops.
+    """
+    seen = {}
+    for name in TILE_MASKS:
+        img = greyscale(tiles.render(tiles.mask_from_name(name), True, pal))
+        key = bytes(v for y in range(img.height) for x in range(img.width) for v in img[x, y])
+        if key in seen:
+            raise SystemExit("FAIL: %s and %s are the same tile in greyscale" % (seen[key], name))
+        seen[key] = name
+    print("  ok   %d tile shapes, %d distinct in greyscale" % (len(TILE_MASKS), len(seen)))
+
+
+def build_family_sheet(pal: dict) -> Canvas:
+    """Every mask, dry on the top row and wet on the bottom, in mask order.
+
+    Read down a column to check rule 2 by eye - only the channel floor may move. Read
+    across a row to check that ten openings produced ten silhouettes.
+    """
+    sheet = Canvas(tiles.SIZE * len(TILE_MASKS), tiles.SIZE * 2, pal["outline"])
+    for i, name in enumerate(TILE_MASKS):
+        mask = tiles.mask_from_name(name)
+        sheet.blit(tiles.render(mask, False, pal), i * tiles.SIZE, 0)
+        sheet.blit(tiles.render(mask, True, pal), i * tiles.SIZE, tiles.SIZE)
+    return sheet
+
+
+## A 3x3 pool the tide actually crosses, so the new shapes get judged inside a route
+## instead of in a row. Tide enters the middle-left tile from the west edge.
+JUNCTION_LAYOUT = [
+    ["ES", "SW", "NS"],
+    ["EW", "NESW", "EW"],
+    ["NE", "NEW", "NS"],
+]
+JUNCTION_SOURCE = (1, 0)  # (row, col)
+
+## (row delta, col delta, opening I need, opening my neighbour needs)
+_STEPS = ((-1, 0, "N", "S"), (1, 0, "S", "N"), (0, -1, "W", "E"), (0, 1, "E", "W"))
+
+
+def flood(layout: list, source: tuple) -> set:
+    """Which cells the tide reaches. Two tiles connect only when both open on the shared
+    edge, which is the same rule the engine uses, so nothing in the scene is wet because
+    I said so."""
+    wet = {source}
+    frontier = [source]
+    while frontier:
+        nxt = []
+        for (r, c) in frontier:
+            mask = tiles.mask_from_name(layout[r][c])
+            for dr, dc, mine, theirs in _STEPS:
+                nr, nc = r + dr, c + dc
+                if not (0 <= nr < len(layout) and 0 <= nc < len(layout[nr])):
+                    continue
+                if (nr, nc) in wet or not mask & tiles.DIR_BITS[mine]:
+                    continue
+                if tiles.mask_from_name(layout[nr][nc]) & tiles.DIR_BITS[theirs]:
+                    wet.add((nr, nc))
+                    nxt.append((nr, nc))
+        frontier = nxt
+    return wet
+
+
+def build_junction_scene(pal: dict) -> Canvas:
+    """The pool above, wet where the flood fill actually got to.
+
+    Top-right and bottom-right are straights turned the wrong way: the tee below the
+    cross pushes water east into solid rock and it stops. That refusal is the whole
+    puzzle - a player has to be able to see it before they rotate anything, and here it
+    is visible as a channel that ends at a rock face rather than as a colour.
+    """
+    wet = flood(JUNCTION_LAYOUT, JUNCTION_SOURCE)
+    rows, cols = len(JUNCTION_LAYOUT), len(JUNCTION_LAYOUT[0])
+    scene = Canvas(tiles.SIZE * cols, tiles.SIZE * rows)
+    for r in range(rows):
+        for c in range(cols):
+            mask = tiles.mask_from_name(JUNCTION_LAYOUT[r][c])
+            scene.blit(tiles.render(mask, (r, c) in wet, pal), c * tiles.SIZE, r * tiles.SIZE)
+    print("  ok   junction scene: %d of %d tiles reached by the tide" % (len(wet), rows * cols))
+    return scene
+
+
 def build_strip(pal: dict) -> Canvas:
     """Two connected tiles and one that is not, in one image.
 
@@ -99,6 +193,9 @@ def main() -> None:
     os.makedirs(TILE_OUT, exist_ok=True)
     os.makedirs(PREVIEW_OUT, exist_ok=True)
 
+    print("checking rule 1 (shape, not hue, carries the route):")
+    assert_masks_distinct(pal)
+
     print("checking rule 2 (dry and wet differ only in channel floor):")
     written = []
     for name in TILE_MASKS:
@@ -114,7 +211,15 @@ def main() -> None:
     scaled(strip, 4).save(os.path.join(PREVIEW_OUT, "strip_4x.png"))
     scaled(greyscale(strip), 4).save(os.path.join(PREVIEW_OUT, "strip_4x_greyscale.png"))
 
-    print("\nwrote %d tile sprites to assets/tiles/ and 3 contact sheets to art/preview/" % len(written))
+    sheet = build_family_sheet(pal)
+    scaled(sheet, 3).save(os.path.join(PREVIEW_OUT, "tiles_3x.png"))
+    scaled(greyscale(sheet), 3).save(os.path.join(PREVIEW_OUT, "tiles_3x_greyscale.png"))
+
+    scene = build_junction_scene(pal)
+    scaled(scene, 4).save(os.path.join(PREVIEW_OUT, "junction_4x.png"))
+    scaled(greyscale(scene), 4).save(os.path.join(PREVIEW_OUT, "junction_4x_greyscale.png"))
+
+    print("\nwrote %d tile sprites to assets/tiles/ and 7 contact sheets to art/preview/" % len(written))
     for p in written:
         print("  " + os.path.relpath(p, ROOT))
 
