@@ -1,0 +1,24 @@
+# Teaches: read the SHAPE, not the direction. The locked i1 at r2c3 looks like a
+# straight shot east and can never be fed, because r2c2 must become a corner.
+id: 6
+name: Long Way Round
+size: 5x5
+par: 8
+tide: 13
+source: r2c0
+grid:
+  .. .. L0 i1 L0
+  .. .. I1 .. I1
+  e1 i1 L2 i1 i0
+  .. .. e1 I0 L2
+  .. .. .. .. ..
+critters:
+  r3c2 starfish
+solution:
+  r2c2 cw1
+  r1c2 cw1
+  r0c2 cw1
+  r0c4 cw2
+  r1c4 cw1
+  r3c4 cw1
+  r3c3 cw1
