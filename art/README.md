@@ -58,6 +58,24 @@ sprite. Rotating a pixel sprite by 90 degrees re-samples it, and worse, the uppe
 gloss would rotate with the tile - a level would end up lit by four different suns. Eleven
 shipped masks: two straights, four elbows, four tees, one cross.
 
+## The locked (barnacled) variant
+
+`tiles.render(mask, wet, palette, locked=True)` crusts the rock with barnacles. Every mask
+has one, written as `locked_NES_wet.png` alongside `channel_NES_wet.png`.
+
+Locked is a **texture, never a tint**. A shell is a ring of four Deep Umber pixels around a
+centre left as bare rock. Rings are placed by distance from the channel rather than by
+coordinate, so they crowd the waterline on any shape, and they thin out as the rock dries
+(1 in 5 at two pixels from the bank, 1 in 11 at five). Placement hashes absolute pixel
+position, the same field the rock grain uses, so two locked tiles side by side crust
+continuously instead of repeating a stamp.
+
+`build.py:assert_locked_is_texture` holds the variant to that claim: barnacles may not
+touch the channel (so the water is identical and the shader tween is unaffected) or the
+1px outline (so the silhouette is pixel-for-pixel the same tile), and there must be at
+least 20 of them, because a crust of four pixels is not a signal. A shell that would spill
+onto the bank is dropped whole rather than clipped - half a ring is a smudge.
+
 ## The junction scene
 
 `preview/junction_4x.png` is a 3x3 pool built from `JUNCTION_LAYOUT` in `build.py`. Which
