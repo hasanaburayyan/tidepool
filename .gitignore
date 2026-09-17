@@ -1,0 +1,13 @@
+# Godot 4
+.godot/
+*.import
+# exports and builds
+build/
+export/
+*.pck
+*.zip
+*.dmg
+*.app/
+# OS / editor
+.DS_Store
+*.tmp

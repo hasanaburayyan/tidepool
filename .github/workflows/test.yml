@@ -1,0 +1,19 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.6.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import project (first run generates .godot/)
+        run: godot --headless --path . --import || true
+      - name: Run headless tests
+        run: godot --headless --path . -s tests/run_tests.gd
