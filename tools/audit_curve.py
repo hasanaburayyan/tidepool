@@ -90,7 +90,14 @@ def main():
         bad += 0 if ok else 1
         print("   level %2d  par %2d  clockwise-only %2d  (+%d)  %s"
               % (lid, par, cw, penalty, "ok, still 2 stars" if ok else "FAIL, below 2 stars"))
-    print("   worst clockwise-only penalty: +%d (must be <= +%d)" % (worst, STAR_2_MARGIN))
+    note = ""
+    if worst == STAR_2_MARGIN:
+        # Marlow's note: satisfied with zero margin. The next level that puts a ccw
+        # move in par flips this from clean to failed with no warning in between,
+        # so say so while it is still passing rather than after it breaks.
+        note = "  <- AT THE LIMIT: one more ccw-in-par level would fail this"
+    print("   worst clockwise-only penalty: +%d (must be <= +%d)%s"
+          % (worst, STAR_2_MARGIN, note))
 
     print("\n%s" % ("AUDIT CLEAN" if bad == 0 else "%d FAILURE(S)" % bad))
     return 1 if bad else 0
