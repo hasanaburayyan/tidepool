@@ -1,0 +1,18 @@
+# Tidepool level 01 - teaches: tap rotates, water flows, a connected critter is rescued.
+# Exactly ONE rotatable tile on the board: the only possible action is the lesson.
+id: 1
+name: First Pool
+size: 5x5
+par: 1
+tide: 6
+source: r2c0
+grid:
+  .. .. .. .. ..
+  .. .. .. .. ..
+  e1 i1 I0 i1 e3
+  .. .. .. .. ..
+  .. .. .. .. ..
+critters:
+  r2c4 starfish
+solution:
+  r2c2 cw1

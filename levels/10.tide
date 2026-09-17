@@ -1,0 +1,30 @@
+# Teaches: hold a long spine and a late split at the same time. Last channels-only
+# level before one-way channels arrive at level 13.
+id: 10
+name: The Long Pool
+size: 7x6
+par: 14
+tide: 19
+source: r5c0
+grid:
+  .. .. e1 I0 L0 .. ..
+  .. .. L0 i1 T0 .. ..
+  .. .. I1 .. I1 .. ..
+  L0 I0 L2 .. L2 i1 e3
+  I1 .. .. .. .. .. ..
+  e0 .. .. .. .. .. ..
+critters:
+  r0c2 anemone
+  r3c6 starfish
+solution:
+  r4c0 cw1
+  r3c0 cw1
+  r3c1 cw1
+  r3c2 cw1
+  r2c2 cw1
+  r1c2 cw1
+  r1c4 cw2
+  r0c4 cw2
+  r0c3 cw1
+  r2c4 cw1
+  r3c4 cw2

@@ -1,0 +1,22 @@
+# ONE-WAY DEMONSTRATION LEVEL - trivially 3-star, not a puzzle.
+# Deliberately the exact shape of level 2, with one symbol swapped: the locked o1
+# at r2c1. Same board, same solution, one new glyph that simply works. The arrow
+# is introduced doing nothing surprising, so the next level can surprise with it.
+id: 13
+name: The Arrow
+size: 5x5
+par: 4
+tide: 10
+source: r2c0
+grid:
+  .. .. L3 i1 e3
+  .. .. I1 .. ..
+  e1 o1 L2 .. ..
+  .. .. .. .. ..
+  .. .. .. .. ..
+critters:
+  r0c4 starfish
+solution:
+  r2c2 cw1
+  r1c2 cw1
+  r0c2 cw2
