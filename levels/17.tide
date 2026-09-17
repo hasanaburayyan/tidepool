@@ -1,0 +1,31 @@
+# Teaches: a current is a one-way street, so take your turning BEFORE you enter it.
+# Three locked arrows at r2c2-r2c4 all point east. Once water is in that spine it
+# cannot come back, so the branch to the anemone has to leave from r2c1 - upstream
+# of the current. A player who routes into the spine first has to reset, and the
+# reset is free. This is the level where "plan the split" becomes the skill.
+id: 17
+name: Downstream
+size: 7x5
+par: 14
+tide: 20
+source: r2c0
+grid:
+  .. L3 I0 I0 I0 e3 ..
+  .. I1 .. .. .. .. ..
+  e1 T1 o1 o1 o1 L0 ..
+  .. .. .. .. .. I1 ..
+  .. .. .. e1 I0 L1 ..
+critters:
+  r0c5 anemone
+  r4c3 starfish
+solution:
+  r2c1 cw2
+  r1c1 cw1
+  r0c1 cw2
+  r0c2 cw1
+  r0c3 cw1
+  r0c4 cw1
+  r2c5 cw2
+  r3c5 cw1
+  r4c5 cw2
+  r4c4 cw1
