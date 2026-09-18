@@ -79,3 +79,69 @@ def _chunk(tag: bytes, data: bytes) -> bytes:
 def hex_to_rgb(text: str):
     text = text.lstrip("#")
     return tuple(int(text[i:i + 2], 16) for i in (0, 2, 4))
+
+
+## ---------------------------------------------------------------------------
+## Reading
+##
+## The encoder existed so I could generate art. This exists so rule 1 can be checked on
+## a *screenshot* rather than only on the sprites I made: "a greyscale board must stay
+## solvable" is a claim about what the engine draws, and until now I could only test it
+## against my own contact sheets. An in-engine screenshot is the real evidence.
+## ---------------------------------------------------------------------------
+
+
+def load(path: str) -> "Canvas":
+    """Read an 8-bit truecolour PNG, with or without alpha. Standard library only."""
+    data = open(path, "rb").read()
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError("%s is not a PNG" % path)
+
+    pos, idat, width, height, colour_type = 8, bytearray(), 0, 0, 0
+    while pos < len(data):
+        length = struct.unpack(">I", data[pos:pos + 4])[0]
+        tag = data[pos + 4:pos + 8]
+        body = data[pos + 8:pos + 8 + length]
+        if tag == b"IHDR":
+            width, height, depth, colour_type = struct.unpack(">IIBB", body[:10])
+            if depth != 8 or colour_type not in (2, 6):
+                raise ValueError("only 8-bit truecolour PNGs, got depth %d type %d" % (depth, colour_type))
+        elif tag == b"IDAT":
+            idat += body            # a large PNG is split across several IDATs; concatenate first
+        elif tag == b"IEND":
+            break
+        pos += 12 + length          # length + tag + body + crc
+
+    stride = 4 if colour_type == 6 else 3
+    raw = zlib.decompress(bytes(idat))
+    img = Canvas(width, height)
+    prev = bytearray(width * stride)
+    at = 0
+    for y in range(height):
+        filt = raw[at]
+        line = bytearray(raw[at + 1:at + 1 + width * stride])
+        at += 1 + width * stride
+        # Undo the per-scanline filter. Godot picks these per row, so all five must work;
+        # my own encoder only ever writes 0, which is why this is the half that needed care.
+        for i in range(len(line)):
+            a = line[i - stride] if i >= stride else 0
+            b = prev[i]
+            c = prev[i - stride] if i >= stride else 0
+            if filt == 1:
+                line[i] = (line[i] + a) & 0xFF
+            elif filt == 2:
+                line[i] = (line[i] + b) & 0xFF
+            elif filt == 3:
+                line[i] = (line[i] + (a + b) // 2) & 0xFF
+            elif filt == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                pred = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
+                line[i] = (line[i] + pred) & 0xFF
+            elif filt != 0:
+                raise ValueError("unknown PNG filter %d on row %d" % (filt, y))
+        for x in range(width):
+            px = line[x * stride:(x + 1) * stride]
+            img[x, y] = tuple(px) if stride == 4 else (px[0], px[1], px[2], 255)
+        prev = line
+    return img
