@@ -19,6 +19,12 @@ const LEVEL_DIR := "res://levels"
 const SPLASH_TIME := 0.28
 
 const SAND := Color("d9bf8f")
+## A hovered tile lifts rather than being boxed. The board is meant to read as one
+## slab of rock with channels cut into it -- that continuity is how a player sees at a
+## glance that two channels are joined -- so a permanent grid would cost the thing it
+## was meant to help. The boundary only has to exist at the moment you are about to
+## turn something, which is exactly when the cursor is on it.
+const HOVER := Color("e6cfa4")
 const ROCK := Color("6b5b4a")
 const WATER := Color("2e8b9a")
 const WATER_DEEP := Color("1d5f6b")
@@ -217,6 +223,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_tree().quit()
 		return
 
+	if event is InputEventMouseMotion:
+		var over := _cell_under(event.position)
+		if over != hover:
+			hover = over
+			dirty = true
+		return
+
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 	if reset_button.has_point(event.position):
@@ -260,6 +273,25 @@ func _tile_at(screen_pos: Vector2) -> Vector2i:
 	return Vector2i(floori(local.x), floori(local.y))
 
 
+## The cell the cursor is over, or (-1, -1). Only tiles the player can actually turn
+## light up: promising an affordance on a barnacled tile would be a lie.
+var hover := Vector2i(-1, -1)
+
+
+func _cell_under(screen_pos: Vector2) -> Vector2i:
+	if grid == null:
+		return Vector2i(-1, -1)
+	var local := (screen_pos - MARGIN) / float(TILE_SIZE)
+	var cell := Vector2i(floor(local.x), floor(local.y))
+	if cell.x < 0 or cell.y < 0 or cell.x >= grid.width or cell.y >= grid.height:
+		return Vector2i(-1, -1)
+	var tile := grid.at(cell)
+	if tile == null or tile.kind == Tile.Kind.EMPTY or not tile.can_rotate() \
+			or tile.rotation_period() <= 1:
+		return Vector2i(-1, -1)
+	return cell
+
+
 func _tile_rect(pos: Vector2i) -> Rect2:
 	return Rect2(MARGIN + Vector2(pos) * TILE_SIZE, Vector2.ONE * TILE_SIZE)
 
@@ -283,7 +315,12 @@ func _draw_tile(pos: Vector2i) -> void:
 	var idx := grid.index(pos)
 	var is_wet := wet.has(idx)
 
-	draw_rect(rect.grow(-2), SAND)
+	# Full bleed, no inset: the 2px gap drew a border around every cell and turned one
+	# slab of rock into a grid of separate cards, which fights the thing the channel art
+	# does on purpose -- an opening runs to the tile edge and fuses with its neighbour.
+	draw_rect(rect, SAND)
+	if pos == hover:
+		draw_rect(rect, HOVER)
 	if tile.kind == Tile.Kind.EMPTY:
 		return
 
