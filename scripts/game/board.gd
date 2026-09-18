@@ -17,6 +17,9 @@ const LEVEL_DIR := "res://levels"
 ## How long a newly wet tile flashes. Flow itself is an instant BFS recompute; only the
 ## set difference is animated, so the eye follows the water without the sim faking it.
 const SPLASH_TIME := 0.28
+## Seconds the water takes to cross one tile. Short on purpose: a cue about direction, not
+## a cutscene -- the player may already be clicking again.
+const STEP_TIME := 0.045
 
 const SAND := Color("d9bf8f")
 const ROCK := Color("6b5b4a")
@@ -44,6 +47,9 @@ var rescued: Dictionary = {}
 var resetting := 0.0
 ## grid index -> seconds of splash left, for tiles that just became wet.
 var splashes: Dictionary = {}
+## grid index -> seconds until the water reaches it. Display only: to the rules the tile is
+## already in `wet`; it just has not been drawn filled yet.
+var arriving: Dictionary = {}
 var reset_button := Rect2()
 
 @onready var _font: Font = ThemeDB.fallback_font
@@ -160,6 +166,7 @@ func restart() -> void:
 	resetting = 0.0
 	rescued = {}
 	splashes = {}
+	arriving = {}
 	tide_left = grid.tide
 	wet = {}
 	_recompute()
@@ -169,10 +176,22 @@ func _recompute() -> void:
 	var before := wet
 	wet = Flow.compute(grid)
 	refusing = Flow.refusing(grid, wet)
-	# Animate only the difference: tiles that were dry a moment ago.
+	# Animate only the difference, and in route order: each newly-wet tile waits its distance
+	# from the nearest newly-wet tile, so the eye follows the path the water actually took.
+	var depth := Flow.distances(grid)
+	var nearest := -1
 	for idx in wet:
 		if not before.has(idx):
-			splashes[idx] = SPLASH_TIME
+			var d: int = depth.get(idx, 0)
+			if nearest < 0 or d < nearest:
+				nearest = d
+	for idx in wet:
+		if not before.has(idx):
+			var delay: float = (int(depth.get(idx, 0)) - nearest) * STEP_TIME
+			if delay > 0.0:
+				arriving[idx] = delay
+			else:
+				splashes[idx] = SPLASH_TIME
 	for i in Flow.rescued(grid, wet):
 		rescued[i] = true
 	# Sponges are not latched the way critters are: rotating one off the route wrings it
@@ -200,6 +219,12 @@ func _process(delta: float) -> void:
 	if grid == null:
 		return
 	var dirty := false
+	for idx in arriving.keys():
+		arriving[idx] -= delta
+		if arriving[idx] <= 0.0:
+			arriving.erase(idx)
+			splashes[idx] = SPLASH_TIME
+		dirty = true
 	for idx in splashes.keys():
 		splashes[idx] -= delta
 		if splashes[idx] <= 0.0:
@@ -295,7 +320,9 @@ func _draw_tile(pos: Vector2i) -> void:
 	var tile := grid.at(pos)
 	var rect := _tile_rect(pos)
 	var idx := grid.index(pos)
-	var is_wet := wet.has(idx)
+	# Wet to the rules the instant the BFS says so; wet on screen once the water has had time
+	# to travel here. Only drawing reads this.
+	var is_wet := wet.has(idx) and not arriving.has(idx)
 
 	draw_rect(rect.grow(-2), SAND)
 	if tile.kind == Tile.Kind.EMPTY:

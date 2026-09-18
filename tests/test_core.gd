@@ -29,6 +29,7 @@ func run() -> int:
 	_test_tile_rotation()
 	_test_shape_rot()
 	_test_refusing()
+	_test_distances()
 	_test_flow_basics()
 	_test_flow_oneway_and_sponge()
 	_test_level_io()
@@ -92,6 +93,42 @@ func _test_shape_rot() -> void:
 ## Refusal is invisible in the wet set -- water simply is not there -- so the board needs
 ## to be told which arrows are doing the turning away. Levels 14, 16, 17 and 18 depend on
 ## the player seeing it, and a silent refusal reads as a bug in the flow.
+## `distances` drives what the player SEES the water do, so if it ever disagrees with
+## `compute` the board would animate water into a tile that is dry, or leave a wet one
+## undrawn. Same traversal, two outputs; this pins them together on every shipped level.
+func _test_distances() -> void:
+	_suite("distances")
+
+	var line := TideFormat.parse("id: 1\nname: line\nsize: 3x1\npar: 1\ntide: 6\n"
+			+ "source: r0c0\ngrid:\n  i1 i1 i1\ncritters:\n  r0c2 crab\n", "line")
+	_check(line["ok"], "the straight-line board parses: %s" % [line["errors"]])
+	if line["ok"]:
+		var g: Grid = line["grid"]
+		var d := Flow.distances(g)
+		_eq(d.get(g.index(Vector2i(0, 0)), -1), 0, "the source is distance 0")
+		_eq(d.get(g.index(Vector2i(1, 0)), -1), 1, "its neighbour is 1")
+		_eq(d.get(g.index(Vector2i(2, 0)), -1), 2, "and the far end is 2")
+
+	var dir := DirAccess.open("res://levels")
+	var names: Array = []
+	if dir != null:
+		for n in dir.get_files():
+			if String(n).ends_with(".tide"):
+				names.append(n)
+	names.sort()
+	_check(names.size() > 0, "found shipped levels to check")
+	for n in names:
+		var parsed := TideFormat.load_file("res://levels/" + String(n))
+		if not parsed["ok"]:
+			continue
+		var grid: Grid = parsed["grid"]
+		var wet_keys: Array = Flow.compute(grid).keys()
+		var dist_keys: Array = Flow.distances(grid).keys()
+		wet_keys.sort()
+		dist_keys.sort()
+		_eq(dist_keys, wet_keys, "%s: distances covers exactly the wet set" % n)
+
+
 func _test_refusing() -> void:
 	_suite("refusing")
 
