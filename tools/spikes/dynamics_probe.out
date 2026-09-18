@@ -1,0 +1,7 @@
+=== CANDIDATE 1: LINKED TILES (two marked tiles always turn together) ===
+  linked    min moves 4    solvable states 1    reachable 256
+  unlinked  min moves 5    solvable states 1    reachable 512
+
+=== CANDIDATE 2: TIDE BASIN (only overflows once fed from two sides) ===
+  basin     min moves 5    solvable states 1    reachable 1024
+  as cross  min moves 2    solvable states 259  reachable 1024
