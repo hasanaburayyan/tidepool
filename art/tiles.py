@@ -337,3 +337,108 @@ def render_arrow(out_dir: str, wet: bool, pal: dict, refused: str = "") -> Canva
     for (x, y) in body:
         img[x, y] = pal["rock_speckle"] if refused == "grey" else pal["outline"]
     return img
+
+## ---------------------------------------------------------------------------
+## Sponges
+##
+## The opposite case to the one-way arrow, and the difference is worth naming. An arrow is
+## a shape plus a direction - two things that vary independently, so it composites. A
+## sponge is a different *material*: thirsty rock that water goes into and never out of.
+## It is a whole tile, `sponge_<sides>_<state>`, and the format only allows it on a
+## straight, so it is four files.
+##
+## "Full" means an objective is complete, which makes it the loudest state change in the
+## game. So the change is the *silhouette*: a dry sponge is a shrunken, pitted lump and a
+## full one is swollen fat enough to bulge past the channel it sits in. That deliberately
+## breaks rule 2, which is a channel rule - a channel must not change shape because a
+## shader tweens it, and a sponge must, because a player has to read it from across the
+## board without looking for it.
+## ---------------------------------------------------------------------------
+
+SPONGE_R_DRY = 6.5    # 13px across against a 10px channel: it bulges even when empty
+SPONGE_R_FULL = 11.0  # nearly twice the diameter again, swollen well past the banks
+
+## Maren's call, and it is a trade rather than a free win. A dry sponge narrower than its
+## channel had the bigger swell, but it sat inside the banks and read as a channel with
+## texture in it - a player could route water into a thirsty tile without ever noticing it
+## was one. Widening the dry lump until it bulges spends some of the swell contrast to buy
+## presence at rest. The resting state has to say "thirsty" before any water arrives; the
+## swell only has to say "done", and it still has 184 pixels to say it with.
+
+
+def _centre_block() -> set:
+    return {(x, y) for y in range(FLOOR_LO, FLOOR_HI + 1) for x in range(FLOOR_LO, FLOOR_HI + 1)}
+
+
+def _wrinkle(x: int, y: int) -> float:
+    """How far the dry sponge's edge is pulled in at this pixel. Deterministic.
+
+    Only the dry state is wrinkled. Drying out is what puckers a sponge; a full one is
+    taut, so its edge is smooth. The two silhouettes therefore differ in character as well
+    as in size, which is the part that survives being glanced at.
+    """
+    h = (x * 2246822519 + y * 3266489917) & 0xFFFFFFFF
+    h = (h ^ (h >> 13)) * 668265263 & 0xFFFFFFFF
+    return (h % 3) * 0.9
+
+
+def sponge_body(mask: int, full: bool) -> set:
+    """The sponge itself plus the channel arms that feed it.
+
+    The arms keep the channel's exact width and position so a sponge meets its neighbours
+    the way any other tile does - the water has to visibly arrive. Everything inside is a
+    lump instead of a cut, which is what makes it read as a different material rather than
+    as a channel with something in it.
+    """
+    arms = channel_cells(mask) - _centre_block()
+    r = SPONGE_R_FULL if full else SPONGE_R_DRY
+    c = (SIZE - 1) / 2.0
+    blob = set()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            limit = r if full else r - _wrinkle(x, y)
+            if ((x - c) ** 2 + (y - c) ** 2) ** 0.5 <= limit:
+                blob.add((x, y))
+    return arms | blob
+
+
+def _pores(body: set, bank: set, full: bool) -> set:
+    """Holes in the sponge. Wide open when dry, squeezed near shut when full.
+
+    A second reading of the same state at a second scale: the silhouette carries it from
+    across the board, the pores carry it when a player is looking right at the tile.
+    """
+    depth = _depth_map(body, bank)
+    out = set()
+    for (x, y) in body:
+        if depth.get((x, y), 0) < 3:
+            continue
+        h = (x * 374761393 + y * 1274126177) & 0xFFFFFFFF
+        h = (h ^ (h >> 11)) * 2654435761 & 0xFFFFFFFF
+        if h % 7:
+            continue
+        if full:
+            out.add((x, y))  # pinched shut
+        else:
+            out |= {(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)}
+    return {p for p in out if p in body and depth.get(p, 0) >= 2}
+
+
+def render_sponge(mask: int, full: bool, pal: dict) -> Canvas:
+    """One 32x32 sponge tile. `full` is the objective-complete state."""
+    body = sponge_body(mask, full)
+    bank = _bank_cells(body)
+
+    img = Canvas(SIZE, SIZE, pal["rock_body"])
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if (x, y) not in body and (x, y) not in bank and _is_speckle(x, y):
+                img[x, y] = pal["rock_speckle"]
+
+    for (x, y) in bank:
+        img[x, y] = pal["outline"]
+    for (x, y) in body:
+        img[x, y] = pal["channel_wet"] if full else pal["channel_dry"]
+    for (x, y) in _pores(body, bank, full):
+        img[x, y] = pal["outline"]
+    return img

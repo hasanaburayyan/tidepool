@@ -136,6 +136,54 @@ def assert_masks_distinct(pal: dict) -> None:
     print("  ok   %d tile pictures, %d distinct in greyscale" % (len(variants), len(seen)))
 
 
+## The format only allows a sponge on a straight, so this is the whole family: four files.
+SPONGE_MASKS = ["EW", "NS"]
+
+
+def assert_sponge_swells(mask: int, pal: dict) -> None:
+    """"Full" is an objective complete, so it has to be a change of silhouette.
+
+    Three claims, all checkable. The sponge only ever grows, so the change reads as
+    swelling rather than as a different tile appearing. It grows enough to see from across
+    the board. And the dry sponge is not just a channel with a lump in it - desaturated,
+    it is a different picture from the plain channel of the same mask, because a player has
+    to know a tile is thirsty *before* they route water into it.
+    """
+    name = tiles.name_from_mask(mask)
+    dry_body = tiles.sponge_body(mask, False)
+    full_body = tiles.sponge_body(mask, True)
+
+    if not dry_body < full_body:
+        raise SystemExit("FAIL sponge %s: full is not a strict superset of dry - it must only swell" % name)
+    growth = len(full_body) - len(dry_body)
+    if growth < 150:
+        raise SystemExit("FAIL sponge %s: swells by only %d pixels, too quiet for an objective" % (name, growth))
+
+    plain = greyscale(tiles.render(mask, False, pal))
+    thirsty = greyscale(tiles.render_sponge(mask, False, pal))
+    if not diff_pixels(plain, thirsty):
+        raise SystemExit("FAIL sponge %s: dry sponge is indistinguishable from a plain channel" % name)
+    print("  ok   %-4s swells %d -> %d pixels (+%d), and reads as thirsty rock when dry"
+          % (name, len(dry_body), len(full_body), growth))
+
+
+def build_sponge_sheet(pal: dict) -> Canvas:
+    """Plain channel, dry sponge, full sponge - in a row, per mask.
+
+    Three tiles because the sponge has to lose two arguments at once: it must not look like
+    a channel, and full must not look like dry.
+    """
+    cols = []
+    for name in SPONGE_MASKS:
+        mask = tiles.mask_from_name(name)
+        cols += [tiles.render(mask, False, pal), tiles.render_sponge(mask, False, pal),
+                 tiles.render_sponge(mask, True, pal)]
+    sheet = Canvas(tiles.SIZE * len(cols), tiles.SIZE, pal["outline"])
+    for i, img in enumerate(cols):
+        sheet.blit(img, i * tiles.SIZE, 0)
+    return sheet
+
+
 def build_family_sheet(pal: dict, locked: bool = False) -> Canvas:
     """Every mask, dry on the top row and wet on the bottom, in mask order.
 
@@ -352,6 +400,19 @@ def main() -> None:
     print("\nchecking locked is a texture on the rock and nothing else:")
     for name in TILE_MASKS:
         assert_locked_is_texture(tiles.mask_from_name(name), pal)
+
+    print("\nthe sponge - full means an objective is complete:")
+    for name in SPONGE_MASKS:
+        mask = tiles.mask_from_name(name)
+        assert_sponge_swells(mask, pal)
+        for full in (False, True):
+            path = os.path.join(TILE_OUT, "sponge_%s_%s.png" % (name.lower(), "wet" if full else "dry"))
+            tiles.render_sponge(mask, full, pal).save(path)
+            written.append(path)
+
+    sponges = build_sponge_sheet(pal)
+    scaled(sponges, 4).save(os.path.join(PREVIEW_OUT, "sponge_4x.png"))
+    scaled(greyscale(sponges), 4).save(os.path.join(PREVIEW_OUT, "sponge_4x_greyscale.png"))
 
     strip = build_strip(pal)
     strip.save(os.path.join(PREVIEW_OUT, "strip_1x.png"))
