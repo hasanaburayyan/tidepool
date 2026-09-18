@@ -13,11 +13,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import critters
 import tiles
 from png import Canvas, hex_to_rgb
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TILE_OUT = os.path.join(ROOT, "assets", "tiles")
+CRITTER_OUT = os.path.join(ROOT, "assets", "critters")
 PREVIEW_OUT = os.path.join(ROOT, "art", "preview")
 
 ## Every rock tile that routes water, as a connection mask. These are not seven drawings;
@@ -181,6 +183,80 @@ def build_sponge_sheet(pal: dict) -> Canvas:
     sheet = Canvas(tiles.SIZE * len(cols), tiles.SIZE, pal["outline"])
     for i, img in enumerate(cols):
         sheet.blit(img, i * tiles.SIZE, 0)
+    return sheet
+
+
+## `board.gd:_draw_critter` keys these "<type>_<state>", and rescue latches, so `rescued`
+## is a final state rather than a phase. Four files.
+CRITTER_TYPES = ["starfish", "anemone"]
+
+
+def luma(rgb) -> float:
+    return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+
+
+def assert_critter_reads(kind: str, pal: dict) -> None:
+    """A critter is the objective, so it has to survive every background in the game.
+
+    Two claims. The outline must fully enclose the sprite - no body pixel may sit directly
+    against the board - because the Umber outline is what isolates the critter from
+    whatever is behind it. And against BOTH backgrounds a critter can be on, dry rock and
+    open water, that outline must be a hard luma step, so the silhouette holds with the
+    colour stripped out.
+
+    This exists because the level 8 greyscale showed the placeholder critters desaturating
+    into the sand - the least visible objects on a board where they are the goal. Coral is
+    luma 130 and Tidewater is 138. Colour alone was never going to hold them.
+    """
+    backgrounds = {"dry rock": pal["rock_body"], "open water": pal["channel_wet"]}
+    for state in ("stranded", "rescued"):
+        img = critters.render(critters.SHAPES[kind](state == "rescued"), pal)
+        body = {(x, y) for y in range(critters.SIZE) for x in range(critters.SIZE)
+                if img[x, y][3] and img[x, y][:3] != pal["outline"]}
+        outline = {(x, y) for y in range(critters.SIZE) for x in range(critters.SIZE)
+                   if img[x, y][:3] == pal["outline"] and img[x, y][3]}
+
+        for (x, y) in body:
+            for q in ((x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y)):
+                inside = 0 <= q[0] < critters.SIZE and 0 <= q[1] < critters.SIZE
+                if inside and q not in body and q not in outline:
+                    raise SystemExit("FAIL %s_%s: body pixel %s touches the board directly"
+                                     % (kind, state, (x, y)))
+        step = min(abs(luma(pal["outline"]) - luma(bg)) for bg in backgrounds.values())
+        if step < 60:
+            raise SystemExit("FAIL %s_%s: outline is only %.0f luma from a background it sits on"
+                             % (kind, state, step))
+        print("  ok   %-8s %-8s %3d outline px enclose it, %.0f luma clear of every background"
+              % (kind, state, len(outline), step))
+
+
+def assert_rescue_opens(kind: str, pal: dict) -> None:
+    """Rescue latches, so it is an ending. It has to look like one from across the board."""
+    stranded = critters._body(critters.SHAPES[kind](False))
+    opened = critters._body(critters.SHAPES[kind](True))
+    if len(opened) <= len(stranded) * 1.4:
+        raise SystemExit("FAIL %s: rescued is only %d px against stranded %d - too quiet for an ending"
+                         % (kind, len(opened), len(stranded)))
+    print("  ok   %-8s opens %d -> %d pixels on rescue (x%.1f)"
+          % (kind, len(stranded), len(opened), len(opened) / len(stranded)))
+
+
+def build_critter_sheet(pal: dict) -> Canvas:
+    """Each critter stranded then rescued, over dry rock and over open water.
+
+    Four columns per critter, because the question is not "does it look good" but "does it
+    hold on both of the things the game will put behind it".
+    """
+    cells = []
+    for kind in CRITTER_TYPES:
+        for bg in (pal["rock_body"], pal["channel_wet"]):
+            for state in (False, True):
+                tile = Canvas(critters.SIZE, critters.SIZE, bg)
+                tile.over(critters.render(critters.SHAPES[kind](state), pal))
+                cells.append(tile)
+    sheet = Canvas(critters.SIZE * len(cells), critters.SIZE, pal["outline"])
+    for i, c in enumerate(cells):
+        sheet.blit(c, i * critters.SIZE, 0)
     return sheet
 
 
@@ -413,6 +489,20 @@ def main() -> None:
     sponges = build_sponge_sheet(pal)
     scaled(sponges, 4).save(os.path.join(PREVIEW_OUT, "sponge_4x.png"))
     scaled(greyscale(sponges), 4).save(os.path.join(PREVIEW_OUT, "sponge_4x_greyscale.png"))
+
+    print("\ncritters - the objective has to survive every background:")
+    os.makedirs(CRITTER_OUT, exist_ok=True)
+    for kind in CRITTER_TYPES:
+        assert_critter_reads(kind, pal)
+        assert_rescue_opens(kind, pal)
+        for state in ("stranded", "rescued"):
+            path = os.path.join(CRITTER_OUT, "%s_%s.png" % (kind, state))
+            critters.render(critters.SHAPES[kind](state == "rescued"), pal).save(path)
+            written.append(path)
+
+    crit = build_critter_sheet(pal)
+    scaled(crit, 4).save(os.path.join(PREVIEW_OUT, "critters_4x.png"))
+    scaled(greyscale(crit), 4).save(os.path.join(PREVIEW_OUT, "critters_4x_greyscale.png"))
 
     strip = build_strip(pal)
     strip.save(os.path.join(PREVIEW_OUT, "strip_1x.png"))
