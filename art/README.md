@@ -130,3 +130,33 @@ the plain arrow.
 facing, one passing water and one refusing it. `build.flood` knows the one-way rule and
 `build.refusals` finds the refusing tile, so neither is something I asserted — the build
 fails if the strip stops showing exactly one refusal.
+
+## The sponge
+
+`tiles.render_sponge(mask, full, palette)`. A whole tile, `sponge_<sides>_<state>`, and
+the format only allows a sponge on a straight, so it is four files.
+
+The opposite case to the one-way arrow, and the difference is worth keeping. An arrow is
+a *shape plus a direction* - two things that vary independently, so it composites and
+eight files cover every tile in the game. A sponge is a different *material*: thirsty
+rock that water goes into and never out of. Nothing composites it.
+
+**Full means an objective is complete**, which makes it the loudest state change in the
+game, so the change is the silhouette. 308 pixels to 492. The dry lump is wide enough to
+break the bank line on purpose: a sponge that sat inside its channel read as a channel
+with texture in it, and a player could route water into a thirsty tile without noticing
+it was one. That spends some swell contrast to buy presence at rest, which is the right
+way round - the resting state has to say "thirsty" before any water arrives, the swell
+only has to say "done", and 184 pixels is plenty to say it with.
+
+Only the dry state is wrinkled, because drying is what puckers a sponge and a full one is
+taut, so the two differ in character as well as in size. Pores carry the same state at a
+second scale: wide open when dry, pinched shut when full.
+
+`build.py:assert_sponge_swells` checks all three claims - the body only ever grows, it
+grows by at least 150 pixels, and a dry sponge is a different picture in greyscale from a
+plain channel of the same mask.
+
+**This deliberately breaks rule 2, and that is correct.** Rule 2 is a channel rule: a
+channel must not change shape, because a shader tweens it. A sponge must, because a
+player has to read it from across the board without looking for it.
