@@ -109,3 +109,25 @@ def anemone(rescued: bool):
 ## rescue still has to open by at least 1.4x, and `build.py` enforces that.
 
 SHAPES = {"starfish": starfish, "anemone": anemone}
+
+
+## --- animation frames --------------------------------------------------------------
+##
+## Keyed `<type>_<state>_<n>` (Marlow's loader cycles them when `_0` exists and falls
+## back to the un-numbered sprite). Frames are not redrawn: each one is the same radius
+## function turned by a small angle - rotating the FUNCTION, never the pixels, so every
+## frame is as crisp as the still. Frame 0 is the identity, so `_0` is byte-identical to
+## the un-numbered sprite and the fallback and the animation can never disagree.
+##
+## Stranded: a 2-frame twitch. Small and slow - a critter drying on sand is still alive.
+## Rescued:  a 4-frame sway, centre / one way / centre / the other. Rescue latches, so this
+##           plays for as long as the player looks at the pool, and it has to be something
+##           you can watch forever: a creature settling back into water, not a victory dance.
+
+FRAMES = {"stranded": [0.0, 0.07], "rescued": [0.0, 0.09, 0.0, -0.09]}
+
+
+def frame(kind: str, state: str, n: int):
+    base = SHAPES[kind](state == "rescued")
+    twist = FRAMES[state][n]
+    return lambda a: base(a - twist)
