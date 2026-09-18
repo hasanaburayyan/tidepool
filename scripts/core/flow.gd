@@ -40,6 +40,43 @@ static func compute(grid: Grid) -> Dictionary:
 	return wet
 
 
+## How many tiles the water travels to reach each wet tile: the source is 0, its
+## neighbours 1, and so on. The same walk as `compute`, carrying the depth along.
+##
+## Display only. The sim has no notion of water taking time -- flow is one instant
+## recompute -- but twelve tiles turning blue in the same frame reads as a state change
+## rather than water moving, and the player loses the one cue that says which way it went.
+static func distances(grid: Grid) -> Dictionary:
+	var depth := {}
+	var start := grid.at(grid.source_pos)
+	if start == null or start.kind == Tile.Kind.EMPTY:
+		return depth
+	if start.kind == Tile.Kind.ONEWAY and start.out_dir == grid.source_from:
+		return depth
+	var queue: Array[Vector2i] = [grid.source_pos]
+	depth[grid.index(grid.source_pos)] = 0
+	var head := 0
+	while head < queue.size():
+		var pos: Vector2i = queue[head]
+		head += 1
+		var here: int = depth[grid.index(pos)]
+		var tile := grid.at(pos)
+		for dir in Tile.DIRS:
+			if not tile.can_exit_through(dir):
+				continue
+			var npos: Vector2i = pos + Tile.DIR_STEPS[dir]
+			if not grid.in_bounds(npos):
+				continue
+			var nidx := grid.index(npos)
+			if depth.has(nidx):
+				continue
+			if not grid.tiles[nidx].can_enter_from(Tile.opposite(dir)):
+				continue
+			depth[nidx] = here + 1
+			queue.append(npos)
+	return depth
+
+
 ## The wet set as sorted positions. For readable test failures and debug draws.
 static func wet_positions(grid: Grid, wet: Dictionary) -> Array[Vector2i]:
 	var keys := wet.keys()
