@@ -59,6 +59,37 @@ static func rescued(grid: Grid, wet: Dictionary) -> Array[int]:
 	return out
 
 
+## Which one-ways are visibly turning water away: water has reached the mouth the arrow
+## points out of, and the arrow will not let it in. Keyed by grid index, like `wet`.
+##
+## This changes nothing about where the water goes -- refusal is already baked into
+## `can_enter_from`. It exists so the board can SHOW it. Levels 14, 16, 17 and 18 are
+## built on the player seeing an arrow refuse and understanding why, and an invisible
+## refusal reads as a bug in the flow (Maren, design doc; `tidepool-engineering` §9).
+static func refusing(grid: Grid, wet: Dictionary) -> Dictionary:
+	var out := {}
+	for y in grid.height:
+		for x in grid.width:
+			var pos := Vector2i(x, y)
+			var tile := grid.at(pos)
+			if tile.kind != Tile.Kind.ONEWAY:
+				continue
+			# The exit side is the only side that refuses. Water sitting anywhere else is
+			# simply flowing in, which is the arrow working rather than the arrow blocking.
+			# A wet arrow is one water got into and is flowing out of -- that is the arrow
+			# working, not blocking. Only a DRY arrow with water at its mouth is refusing.
+			if wet.has(grid.index(pos)):
+				continue
+			var outside: Vector2i = pos + Tile.DIR_STEPS[tile.out_dir]
+			if not grid.in_bounds(outside) or not wet.has(grid.index(outside)):
+				continue
+			# Only a neighbour that is actually open towards us is being turned away; a
+			# wet tile with a wall facing the arrow was never going to enter it.
+			if grid.at(outside).connects(Tile.opposite(tile.out_dir)):
+				out[grid.index(pos)] = true
+	return out
+
+
 static func all_rescued(grid: Grid, wet: Dictionary) -> bool:
 	if grid.critters.is_empty():
 		return false

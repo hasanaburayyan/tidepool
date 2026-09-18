@@ -54,13 +54,16 @@ var reset_button := Rect2()
 ## seen in the game the same day instead of waiting for a complete sheet.
 ## Naming and sizes are the contract in tidepool-engineering §9.
 var art: Dictionary = {}
+## One-ways currently turning water away, recomputed with the wet set. Display only.
+var refusing: Dictionary = {}
 
 
 const KIND_PREFIX := {
 	Tile.Kind.CHANNEL: "channel",
 	Tile.Kind.CRAB: "channel",
 	Tile.Kind.SPONGE: "sponge",
-	Tile.Kind.ONEWAY: "oneway",
+	# A one-way's BASE is an ordinary channel; the arrow goes over it as an overlay.
+	Tile.Kind.ONEWAY: "channel",
 }
 
 
@@ -69,13 +72,18 @@ const KIND_PREFIX := {
 ## cannot be rotated: a corner facing NE and the same corner facing SW want different
 ## shading. One file per orientation is the artist's call to make, not mine to force.
 func _facing_key(tile: Tile) -> String:
-	if tile.kind == Tile.Kind.ONEWAY:
-		# An arrow is keyed by the side water LEAVES through, not by its connection set:
-		# two one-ways on the same N,S channel pointing opposite ways are different tiles
-		# and a set of openings cannot tell them apart (Maren, and the .tide format agrees
-		# -- the rotation digit is the exit side).
-		return "oneway_%s" % Tile.DIR_NAMES[tile.out_dir].to_lower()
 	return "%s_%s" % [KIND_PREFIX.get(tile.kind, "channel"), _sides_key(tile)]
+
+
+## The arrow drawn OVER a one-way's channel, keyed by the side water leaves through.
+##
+## It is an overlay rather than a whole tile because the two things a one-way is -- a
+## shape and a direction -- vary independently. The format lets any mask carry an arrow,
+## so baking them together is 28 (mask, exit) pairs and a new file every time a level
+## uses a shape nobody anticipated. Level 14's `o3` already sits beside a tee. (Cove's
+## call, and they were right.)
+func _arrow_key(tile: Tile) -> String:
+	return "oneway_%s" % Tile.DIR_NAMES[tile.out_dir].to_lower()
 
 
 func _sides_key(tile: Tile) -> String:
@@ -160,6 +168,7 @@ func restart() -> void:
 func _recompute() -> void:
 	var before := wet
 	wet = Flow.compute(grid)
+	refusing = Flow.refusing(grid, wet)
 	# Animate only the difference: tiles that were dry a moment ago.
 	for idx in wet:
 		if not before.has(idx):
@@ -298,11 +307,15 @@ func _draw_tile(pos: Vector2i) -> void:
 		var crust: Variant = art.get("locked_%s_%s" % [_sides_key(tile), state])
 		if crust != null:
 			_draw_sprite(crust, rect)
+			# A barnacled one-way still has to show its arrow, or levels 16-18 lose the
+			# one thing the player is reading.
+			_draw_arrow_overlay(tile, rect, idx, state)
 			return
 
 	var sprite: Variant = art.get("%s_%s" % [_facing_key(tile), state])
 	if sprite != null:
 		_draw_sprite(sprite, rect)
+		_draw_arrow_overlay(tile, rect, idx, state)
 		_draw_locked_pips(tile, rect)
 		return
 	var shape_rot := tile.shape_rot()
@@ -330,13 +343,33 @@ func _draw_tile(pos: Vector2i) -> void:
 			# A ring: water gets in and stops there.
 			draw_arc(centre, 22.0, 0.0, TAU, 24, WATER_DEEP if is_wet else ROCK, 4.0)
 		Tile.Kind.ONEWAY:
-			_draw_arrow(centre, tile.out_dir, WATER_DEEP if is_wet else ROCK)
+			# Greyed while it is turning water away -- a placeholder for whatever
+			# treatment Cove and Maren settle on, but never an invisible refusal.
+			var arrow := LOCKED if refusing.has(idx) else (WATER_DEEP if is_wet else ROCK)
+			_draw_arrow(centre, tile.out_dir, arrow)
 		Tile.Kind.CRAB:
 			draw_rect(Rect2(centre - Vector2(8, 8), Vector2(16, 16)), CRITTER)
 		_:
 			pass
 
 	_draw_locked_pips(tile, rect)
+
+
+## Refusing is a treatment on the arrow, not a fifth facing: same key, `_refused` suffix,
+## falling back to the plain arrow until that art exists. It is load-bearing -- levels 14,
+## 16, 17 and 18 are built on the player seeing an arrow turn water away -- and it is a
+## steady state rather than a flash, so it has to stay legible while the player thinks.
+func _draw_arrow_overlay(tile: Tile, rect: Rect2, idx: int, state: String) -> void:
+	if tile.kind != Tile.Kind.ONEWAY:
+		return
+	var key := "%s_%s" % [_arrow_key(tile), state]
+	var arrow: Variant = null
+	if refusing.has(idx):
+		arrow = art.get(key + "_refused")
+	if arrow == null:
+		arrow = art.get(key)
+	if arrow != null:
+		_draw_sprite(arrow, rect)
 
 
 func _draw_locked_pips(tile: Tile, rect: Rect2) -> void:
