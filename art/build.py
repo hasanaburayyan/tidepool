@@ -34,7 +34,13 @@ STRAIGHT_MASKS = ["EW", "NS"]
 CORNER_MASKS = ["NE", "ES", "SW", "NW"]
 TEE_MASKS = ["NES", "ESW", "NSW", "NEW"]
 CROSS_MASKS = ["NESW"]
-TILE_MASKS = STRAIGHT_MASKS + CORNER_MASKS + TEE_MASKS + CROSS_MASKS
+## Caps: one opening. `tide_format.gd` spells them `E` (0b0001) and every level uses them -
+## the tide source and every critter's pool are caps. Until these existed the engine found
+## no `channel_n` and fell back to drawing those tiles procedurally, so the two most
+## important cells on every board were the only ones not in the art style. No new drawing
+## code: `channel_cells` has always capped a dead end for free.
+CAP_MASKS = ["N", "E", "S", "W"]
+TILE_MASKS = STRAIGHT_MASKS + CORNER_MASKS + TEE_MASKS + CROSS_MASKS + CAP_MASKS
 
 
 def load_palette() -> dict:
