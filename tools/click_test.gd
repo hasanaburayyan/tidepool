@@ -13,6 +13,13 @@ extends SceneTree
 ##
 ## Exit code is 1 if any level refuses a click, so this can gate an export.
 
+##
+## ON A FRESH CHECKOUT, IMPORT FIRST:
+##   godot --headless --path . --import
+## A `--script` run does not build the global class registry, and `scripts/core` refers to
+## itself by `class_name`, so without it the project does not parse and the error points at
+## whichever file happened to be read first. CI imports before every step, which is why this
+## only bites a clean clone.
 func _initialize() -> void:
 	var argv := OS.get_cmdline_user_args()
 	var levels: Array = []
