@@ -106,11 +106,7 @@ func _arrow_key(tile: Tile) -> String:
 
 
 func _sides_key(tile: Tile) -> String:
-	var sides := ""
-	for dir in Tile.DIRS:
-		if tile.connects(dir):
-			sides += Tile.DIR_NAMES[dir]
-	return sides.to_lower()
+	return tile.sides_key()
 
 
 func _load_art() -> void:

@@ -163,6 +163,10 @@ func _test_tile_rotation() -> void:
 	_eq(straight.mask, 0b1010, "vertical straight turns horizontal")
 	straight.rotate_cw()
 	_eq(straight.mask, 0b0101, "and back again after two turns")
+	# The sprite key: sides in N-E-S-W order, lower case. Every art name and the rules dump use it.
+	_eq(straight.sides_key(), "ns", "sides_key of a vertical straight is ns")
+	_eq(Tile.make(Tile.Kind.CHANNEL, 0b1011).sides_key(), "new", "sides_key keeps N-E-S-W order")
+	_eq(Tile.make(Tile.Kind.EMPTY, 0).sides_key(), "", "sides_key of rock is empty")
 
 	var corner := Tile.make(Tile.Kind.CHANNEL, 0b0011)  # N E
 	corner.rotate_cw()
