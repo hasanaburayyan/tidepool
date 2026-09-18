@@ -15,6 +15,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Import project (first run generates .godot/)
         run: godot --headless --path . --import || true
+      # The unit tests check the rules; this checks the game. A board.gd that did not parse
+      # shipped to main once with every PR green, because nothing here loaded it.
+      - name: The game itself loads
+        timeout-minutes: 3
+        run: godot --headless --path . --script res://tools/load_check.gd
+
       - name: Run headless tests
         run: godot --headless --path . -s tests/run_tests.gd
 
