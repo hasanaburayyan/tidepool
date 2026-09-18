@@ -1,0 +1,94 @@
+extends SceneTree
+## Clicks the game the way a player does, through the real input stack, and fails if
+## nothing rotates. Needs a real window -- Control hit-testing and viewport input do not
+## exist headless, which is exactly why this bug reached the board.
+##
+##   godot --path . --script res://tools/click_test.gd -- [level ...]
+##
+## TIDE-19: a full-screen ColorRect background sat above the board with the default
+## mouse_filter of STOP, so every click was consumed before `_unhandled_input` ran. Keys
+## still worked, so the game looked alive and was not playable. `shot.gd` could not catch
+## it because it calls `_try_rotate` directly; only a synthetic event pushed through
+## `Input.parse_input_event` travels the same path a mouse does.
+##
+## Exit code is 1 if any level refuses a click, so this can gate an export.
+
+func _initialize() -> void:
+	var argv := OS.get_cmdline_user_args()
+	var levels: Array = []
+	for a in argv:
+		levels.append(int(a))
+	if levels.is_empty():
+		levels = [0, 4, 12, 18]  # levels 1, 5, 13 and 19: channel, channel, one-way, sponge
+
+	var scene: Node = load("res://scenes/main.tscn").instantiate()
+	root.add_child(scene)
+	var board = scene.get_node("Board")
+	for _i in 10:
+		await process_frame
+
+	var failures := 0
+	for level in levels:
+		if level >= board.levels.size():
+			print("FAIL level index %d does not exist" % level)
+			failures += 1
+			continue
+		board.load_level(level)
+		for _i in 5:
+			await process_frame
+
+		var target: Variant = _first_rotatable(board)
+		if target == null:
+			print("FAIL %-16s has no rotatable tile to click" % board.grid.title)
+			failures += 1
+			continue
+
+		var before: int = board.moves
+		var before_mask: int = board.grid.at(target).mask
+		await _click(board, target, MOUSE_BUTTON_LEFT)
+
+		if board.moves == before:
+			print("FAIL %-16s click at %s did not register" % [board.grid.title, target])
+			failures += 1
+		elif board.grid.at(target).mask == before_mask:
+			print("FAIL %-16s click counted but the tile did not turn" % board.grid.title)
+			failures += 1
+		else:
+			# And right-click has to turn it back the other way.
+			var after_left: int = board.grid.at(target).mask
+			await _click(board, target, MOUSE_BUTTON_RIGHT)
+			if board.grid.at(target).mask == after_left:
+				print("FAIL %-16s right-click did not turn the tile back" % board.grid.title)
+				failures += 1
+			else:
+				print("ok   %-16s left-click rotates, right-click rotates back" % board.grid.title)
+
+	print("")
+	print("%d levels clicked, %d FAILED" % [levels.size(), failures])
+	quit(1 if failures > 0 else 0)
+
+
+## The first tile a player could actually turn, so the test never clicks solid rock.
+func _first_rotatable(board) -> Variant:
+	for y in board.grid.height:
+		for x in board.grid.width:
+			var pos := Vector2i(x, y)
+			if board.grid.at(pos).can_rotate() and board.grid.at(pos).rotation_period() > 1:
+				return pos
+	return null
+
+
+## Pushes a real mouse event at the centre of a tile: through the viewport, past any
+## Control that might swallow it, and only then into the board.
+func _click(board, tile_pos: Vector2i, button: int) -> void:
+	var rect: Rect2 = board._tile_rect(tile_pos)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = button
+		event.pressed = pressed
+		event.position = rect.get_center()
+		event.global_position = event.position
+		Input.parse_input_event(event)
+		await process_frame
+	for _i in 3:
+		await process_frame
