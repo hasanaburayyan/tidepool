@@ -22,6 +22,12 @@ const SPLASH_TIME := 0.28
 const STEP_TIME := 0.045
 
 const SAND := Color("d9bf8f")
+## A hovered tile lifts rather than being boxed. The board is meant to read as one
+## slab of rock with channels cut into it -- that continuity is how a player sees at a
+## glance that two channels are joined -- so a permanent grid would cost the thing it
+## was meant to help. The boundary only has to exist at the moment you are about to
+## turn something, which is exactly when the cursor is on it.
+const HOVER := Color("e6cfa4")
 const ROCK := Color("6b5b4a")
 const WATER := Color("2e8b9a")
 const WATER_DEEP := Color("1d5f6b")
@@ -256,6 +262,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_tree().quit()
 		return
 
+	if event is InputEventMouseMotion:
+		var over := _tile_at(event.position)
+		if over != hover:
+			hover = over
+			dirty = true
+		return
+
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 	if reset_button.has_point(event.position):
@@ -299,6 +312,12 @@ func _tile_at(screen_pos: Vector2) -> Vector2i:
 	return Vector2i(floori(local.x), floori(local.y))
 
 
+## The cell the cursor is over, or whatever _tile_at returns off-board. Hit-testing
+## lives in _tile_at and nowhere else: hover and click must agree about which tile
+## is under the pointer, and two copies of that arithmetic is how they stop agreeing.
+var hover := Vector2i(-1, -1)
+
+
 func _tile_rect(pos: Vector2i) -> Rect2:
 	return Rect2(MARGIN + Vector2(pos) * TILE_SIZE, Vector2.ONE * TILE_SIZE)
 
@@ -324,7 +343,15 @@ func _draw_tile(pos: Vector2i) -> void:
 	# to travel here. Only drawing reads this.
 	var is_wet := wet.has(idx) and not arriving.has(idx)
 
-	draw_rect(rect.grow(-2), SAND)
+	# Full bleed, no inset: the 2px gap drew a border around every cell and turned one
+	# slab of rock into a grid of separate cards, which fights the thing the channel art
+	# does on purpose -- an opening runs to the tile edge and fuses with its neighbour.
+	draw_rect(rect, SAND)
+	# Only a tile the player can actually turn lifts. Promising an affordance on a
+	# barnacled tile, bare sand or a cross would be a lie, and a cross is a rotation
+	# no-op the engine already excludes.
+	if pos == hover and tile.can_rotate() and tile.rotation_period() > 1:
+		draw_rect(rect, HOVER)
 	if tile.kind == Tile.Kind.EMPTY:
 		return
 
