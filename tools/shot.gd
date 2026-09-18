@@ -4,6 +4,13 @@ extends SceneTree
 ## bare `class_name` is undeclared here unless the project happens to have been imported
 ## already. Preloading by path makes the tool work on a fresh checkout, which is exactly
 ## where it is most needed. (Cove hit this on main.)
+##
+## ON A FRESH CHECKOUT, IMPORT FIRST:
+##   godot --headless --path . --import
+## A `--script` run does not build the global class registry, and `scripts/core` refers to
+## itself by `class_name`, so without it the project does not parse and the error points at
+## whichever file happened to be read first. CI imports before every step, which is why this
+## only bites a clean clone.
 const TideFormat = preload("res://scripts/core/tide_format.gd")
 
 ## Loads the game, optionally plays a few moves, and saves a PNG. Needs a real window:
