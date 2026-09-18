@@ -13,6 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import beachmap
 import critters
 import icon
 import tiles
@@ -553,6 +554,14 @@ def main() -> None:
     scaled(greyscale(scene), 4).save(os.path.join(PREVIEW_OUT, "junction_4x_greyscale.png"))
 
     # The app icon is built from the same sprites, so it can never drift off palette again.
+    print("\nthe beach map (keys fixed by Marlow, spec tidepool-beach-map):")
+    written += beachmap.write_assets(pal, ROOT)
+    demo = {i: ("done", [3, 3, 2, 3, 1, 2, 3, 3, 2, 3, 2, 3, 3, 1][i - 1]) for i in range(1, 15)}
+    demo[15] = ("open", 0)
+    full = beachmap.compose_preview(pal, demo)
+    full.save(os.path.join(PREVIEW_OUT, "beachmap_full.png"))
+    greyscale(full).save(os.path.join(PREVIEW_OUT, "beachmap_full_greyscale.png"))
+
     icon_path = icon.write(pal, ROOT)
     scaled(icon.compose(pal), 4).save(os.path.join(PREVIEW_OUT, "icon_4x.png"))
     print("\nwrote %s from the game's own sprites" % os.path.relpath(icon_path, ROOT))
