@@ -44,6 +44,13 @@ var rescued: Dictionary = {}
 var resetting := 0.0
 ## grid index -> seconds of splash left, for tiles that just became wet.
 var splashes: Dictionary = {}
+## Seconds since the board woke, for looping critter frames. Display only.
+var anim_time := 0.0
+## Set by _load_art when any critter ships numbered frames; only then does the board need to
+## redraw every frame just to animate them.
+var _critter_frames := false
+## Frames per second per state (Maren's spec: a slow two-frame idle, a quick rescue wiggle).
+const CRITTER_FPS := {"stranded": 2.0, "rescued": 8.0}
 var reset_button := Rect2()
 
 @onready var _font: Font = ThemeDB.fallback_font
@@ -98,7 +105,10 @@ func _load_art() -> void:
 				continue
 			var tex := load(dir_path.path_join(clean))
 			if tex is Texture2D:
-				art[clean.get_basename().to_lower()] = tex
+				var key := clean.get_basename().to_lower()
+				art[key] = tex
+				if key.ends_with("_stranded_0") or key.ends_with("_rescued_0"):
+					_critter_frames = true
 
 
 ## Draws a base-orientation sprite turned `turns` quarter-turns clockwise about its centre.
@@ -186,6 +196,9 @@ func _process(delta: float) -> void:
 	if grid == null:
 		return
 	var dirty := false
+	anim_time += delta
+	if _critter_frames:
+		dirty = true
 	for idx in splashes.keys():
 		splashes[idx] -= delta
 		if splashes[idx] <= 0.0:
@@ -358,11 +371,24 @@ func _draw_arrow(centre: Vector2, dir: int, colour: Color) -> void:
 	draw_colored_polygon([tip, centre + side, centre - side], colour)
 
 
+## The critter picture for this moment. Numbered frames `<type>_<state>_<n>` cycle at the
+## state's rate; with no `_0` the single un-numbered `<type>_<state>` is used, so a critter
+## with one drawing and a critter with an animation both just work.
+func _critter_frame(base: String, state: String) -> Variant:
+	if not art.has(base + "_0"):
+		return art.get(base)
+	var count := 1
+	while art.has("%s_%d" % [base, count]):
+		count += 1
+	var fps: float = CRITTER_FPS.get(state, 4.0)
+	return art["%s_%d" % [base, int(anim_time * fps) % count]]
+
+
 func _draw_critter(i: int) -> void:
 	var critter: Dictionary = grid.critters[i]
 	var rect := _tile_rect(critter["pos"])
 	var state := "rescued" if rescued.has(i) else "stranded"
-	var sprite: Variant = art.get("%s_%s" % [critter.get("type", "crab"), state])
+	var sprite: Variant = _critter_frame("%s_%s" % [critter.get("type", "crab"), state], state)
 	if sprite != null:
 		_draw_sprite(sprite, rect)
 		return
