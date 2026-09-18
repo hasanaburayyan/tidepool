@@ -31,6 +31,12 @@ func _initialize() -> void:
 	var scene: Node = load("res://scenes/main.tscn").instantiate()
 	root.add_child(scene)
 	var board = scene.get_node("Board")
+	if board.get_script() == null:
+		# A board.gd that does not parse loads as a bare Node2D. Without this the first
+		# `board.levels` errors inside a coroutine, quit() is never reached, and the run hangs.
+		print("FAIL the board script did not load -- look for a Parse Error above")
+		quit(1)
+		return
 	for _i in 10:
 		await process_frame
 
