@@ -224,7 +224,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseMotion:
-		var over := _cell_under(event.position)
+		var over := _tile_at(event.position)
 		if over != hover:
 			hover = over
 			dirty = true
@@ -273,23 +273,10 @@ func _tile_at(screen_pos: Vector2) -> Vector2i:
 	return Vector2i(floori(local.x), floori(local.y))
 
 
-## The cell the cursor is over, or (-1, -1). Only tiles the player can actually turn
-## light up: promising an affordance on a barnacled tile would be a lie.
+## The cell the cursor is over, or whatever _tile_at returns off-board. Hit-testing
+## lives in _tile_at and nowhere else: hover and click must agree about which tile
+## is under the pointer, and two copies of that arithmetic is how they stop agreeing.
 var hover := Vector2i(-1, -1)
-
-
-func _cell_under(screen_pos: Vector2) -> Vector2i:
-	if grid == null:
-		return Vector2i(-1, -1)
-	var local := (screen_pos - MARGIN) / float(TILE_SIZE)
-	var cell := Vector2i(floor(local.x), floor(local.y))
-	if cell.x < 0 or cell.y < 0 or cell.x >= grid.width or cell.y >= grid.height:
-		return Vector2i(-1, -1)
-	var tile := grid.at(cell)
-	if tile == null or tile.kind == Tile.Kind.EMPTY or not tile.can_rotate() \
-			or tile.rotation_period() <= 1:
-		return Vector2i(-1, -1)
-	return cell
 
 
 func _tile_rect(pos: Vector2i) -> Rect2:
@@ -319,7 +306,10 @@ func _draw_tile(pos: Vector2i) -> void:
 	# slab of rock into a grid of separate cards, which fights the thing the channel art
 	# does on purpose -- an opening runs to the tile edge and fuses with its neighbour.
 	draw_rect(rect, SAND)
-	if pos == hover:
+	# Only a tile the player can actually turn lifts. Promising an affordance on a
+	# barnacled tile, bare sand or a cross would be a lie, and a cross is a rotation
+	# no-op the engine already excludes.
+	if pos == hover and tile.can_rotate() and tile.rotation_period() > 1:
 		draw_rect(rect, HOVER)
 	if tile.kind == Tile.Kind.EMPTY:
 		return
