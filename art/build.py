@@ -248,6 +248,41 @@ def assert_rescue_opens(kind: str, pal: dict) -> None:
           % (kind, len(stranded), len(opened), len(opened) / len(stranded)))
 
 
+def assert_frames_hold(kind: str, pal: dict) -> None:
+    """Every frame has to pass what the still passes - an animation is only as legible as
+    its worst frame. Plus two things only frames can get wrong: frame 0 must BE the still
+    (the loader falls back to it), and no frame may clip at the canvas edge, where the
+    outline would be cut off without any neighbour check noticing."""
+    for state, twists in critters.FRAMES.items():
+        still = critters.render(critters.SHAPES[kind](state == "rescued"), pal)
+        imgs = [critters.render(critters.frame(kind, state, n), pal) for n in range(len(twists))]
+        if diff_pixels(still, imgs[0]):
+            raise SystemExit("FAIL %s_%s_0 differs from the un-numbered sprite" % (kind, state))
+        if all(not diff_pixels(imgs[0], im) for im in imgs[1:]):
+            raise SystemExit("FAIL %s_%s: every frame is identical - the animation is a no-op" % (kind, state))
+        for n, im in enumerate(imgs):
+            edge = [(x, y) for y in range(critters.SIZE) for x in range(critters.SIZE)
+                    if im[x, y][3] and (x in (0, critters.SIZE - 1) or y in (0, critters.SIZE - 1))]
+            if edge:
+                raise SystemExit("FAIL %s_%s_%d clips at the canvas edge at %s" % (kind, state, n, edge[:3]))
+    lo = min(len(critters._body(critters.frame(kind, "rescued", n))) for n in range(4))
+    hi = max(len(critters._body(critters.frame(kind, "stranded", n))) for n in range(2))
+    if lo < hi * 1.4:
+        raise SystemExit("FAIL %s: smallest rescued frame %d < 1.4x largest stranded frame %d" % (kind, lo, hi))
+    print("  ok   %-8s 2 idle + 4 rescue frames: frame 0 is the still, none clip, rescue still opens x%.1f"
+          % (kind, lo / hi))
+
+
+def build_frames_sheet(pal: dict) -> Canvas:
+    """Every frame in a row, stranded then rescued, per critter - read left to right."""
+    cells = [critters.render(critters.frame(k, st, n), pal)
+             for k in CRITTER_TYPES for st in ("stranded", "rescued") for n in range(len(critters.FRAMES[st]))]
+    sheet = Canvas(critters.SIZE * len(cells), critters.SIZE, pal["rock_body"])
+    for i, c in enumerate(cells):
+        sheet.over(c, i * critters.SIZE, 0)
+    return sheet
+
+
 def build_critter_sheet(pal: dict) -> Canvas:
     """Each critter stranded then rescued, over dry rock and over open water.
 
@@ -506,7 +541,13 @@ def main() -> None:
             path = os.path.join(CRITTER_OUT, "%s_%s.png" % (kind, state))
             critters.render(critters.SHAPES[kind](state == "rescued"), pal).save(path)
             written.append(path)
+            for n in range(len(critters.FRAMES[state])):
+                path = os.path.join(CRITTER_OUT, "%s_%s_%d.png" % (kind, state, n))
+                critters.render(critters.frame(kind, state, n), pal).save(path)
+                written.append(path)
+        assert_frames_hold(kind, pal)
 
+    scaled(build_frames_sheet(pal), 4).save(os.path.join(PREVIEW_OUT, "critter_frames_4x.png"))
     crit = build_critter_sheet(pal)
     scaled(crit, 4).save(os.path.join(PREVIEW_OUT, "critters_4x.png"))
     scaled(greyscale(crit), 4).save(os.path.join(PREVIEW_OUT, "critters_4x_greyscale.png"))
