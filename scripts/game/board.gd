@@ -17,8 +17,17 @@ const LEVEL_DIR := "res://levels"
 ## How long a newly wet tile flashes. Flow itself is an instant BFS recompute; only the
 ## set difference is animated, so the eye follows the water without the sim faking it.
 const SPLASH_TIME := 0.28
+## Seconds the water takes to cross one tile. Short on purpose: a cue about direction, not
+## a cutscene -- the player may already be clicking again.
+const STEP_TIME := 0.045
 
 const SAND := Color("d9bf8f")
+## A hovered tile lifts rather than being boxed. The board is meant to read as one
+## slab of rock with channels cut into it -- that continuity is how a player sees at a
+## glance that two channels are joined -- so a permanent grid would cost the thing it
+## was meant to help. The boundary only has to exist at the moment you are about to
+## turn something, which is exactly when the cursor is on it.
+const HOVER := Color("e6cfa4")
 const ROCK := Color("6b5b4a")
 const WATER := Color("2e8b9a")
 const WATER_DEEP := Color("1d5f6b")
@@ -44,6 +53,9 @@ var rescued: Dictionary = {}
 var resetting := 0.0
 ## grid index -> seconds of splash left, for tiles that just became wet.
 var splashes: Dictionary = {}
+## grid index -> seconds until the water reaches it. Display only: to the rules the tile is
+## already in `wet`; it just has not been drawn filled yet.
+var arriving: Dictionary = {}
 var reset_button := Rect2()
 
 @onready var _font: Font = ThemeDB.fallback_font
@@ -54,13 +66,16 @@ var reset_button := Rect2()
 ## seen in the game the same day instead of waiting for a complete sheet.
 ## Naming and sizes are the contract in tidepool-engineering §9.
 var art: Dictionary = {}
+## One-ways currently turning water away, recomputed with the wet set. Display only.
+var refusing: Dictionary = {}
 
 
 const KIND_PREFIX := {
 	Tile.Kind.CHANNEL: "channel",
 	Tile.Kind.CRAB: "channel",
 	Tile.Kind.SPONGE: "sponge",
-	Tile.Kind.ONEWAY: "oneway",
+	# A one-way's BASE is an ordinary channel; the arrow goes over it as an overlay.
+	Tile.Kind.ONEWAY: "channel",
 }
 
 
@@ -69,13 +84,18 @@ const KIND_PREFIX := {
 ## cannot be rotated: a corner facing NE and the same corner facing SW want different
 ## shading. One file per orientation is the artist's call to make, not mine to force.
 func _facing_key(tile: Tile) -> String:
-	if tile.kind == Tile.Kind.ONEWAY:
-		# An arrow is keyed by the side water LEAVES through, not by its connection set:
-		# two one-ways on the same N,S channel pointing opposite ways are different tiles
-		# and a set of openings cannot tell them apart (Maren, and the .tide format agrees
-		# -- the rotation digit is the exit side).
-		return "oneway_%s" % Tile.DIR_NAMES[tile.out_dir].to_lower()
 	return "%s_%s" % [KIND_PREFIX.get(tile.kind, "channel"), _sides_key(tile)]
+
+
+## The arrow drawn OVER a one-way's channel, keyed by the side water leaves through.
+##
+## It is an overlay rather than a whole tile because the two things a one-way is -- a
+## shape and a direction -- vary independently. The format lets any mask carry an arrow,
+## so baking them together is 28 (mask, exit) pairs and a new file every time a level
+## uses a shape nobody anticipated. Level 14's `o3` already sits beside a tee. (Cove's
+## call, and they were right.)
+func _arrow_key(tile: Tile) -> String:
+	return "oneway_%s" % Tile.DIR_NAMES[tile.out_dir].to_lower()
 
 
 func _sides_key(tile: Tile) -> String:
@@ -152,6 +172,7 @@ func restart() -> void:
 	resetting = 0.0
 	rescued = {}
 	splashes = {}
+	arriving = {}
 	tide_left = grid.tide
 	wet = {}
 	_recompute()
@@ -160,10 +181,23 @@ func restart() -> void:
 func _recompute() -> void:
 	var before := wet
 	wet = Flow.compute(grid)
-	# Animate only the difference: tiles that were dry a moment ago.
+	refusing = Flow.refusing(grid, wet)
+	# Animate only the difference, and in route order: each newly-wet tile waits its distance
+	# from the nearest newly-wet tile, so the eye follows the path the water actually took.
+	var depth := Flow.distances(grid)
+	var nearest := -1
 	for idx in wet:
 		if not before.has(idx):
-			splashes[idx] = SPLASH_TIME
+			var d: int = depth.get(idx, 0)
+			if nearest < 0 or d < nearest:
+				nearest = d
+	for idx in wet:
+		if not before.has(idx):
+			var delay: float = (int(depth.get(idx, 0)) - nearest) * STEP_TIME
+			if delay > 0.0:
+				arriving[idx] = delay
+			else:
+				splashes[idx] = SPLASH_TIME
 	for i in Flow.rescued(grid, wet):
 		rescued[i] = true
 	# Sponges are not latched the way critters are: rotating one off the route wrings it
@@ -175,17 +209,28 @@ func _recompute() -> void:
 	queue_redraw()
 
 
+## How far over par still earns two stars. Named because it is a rule, not a number, and
+## tools/audit_curve.py kept its own copy of it -- tools/dump_rules.gd now exports this one.
+const STAR_2_MARGIN := 2
+
+
 ## 3 stars at or under par, 2 within par+2, 1 for solving it at all (design doc §2.4).
 func stars() -> int:
 	if moves <= grid.par:
 		return 3
-	return 2 if moves <= grid.par + 2 else 1
+	return 2 if moves <= grid.par + STAR_2_MARGIN else 1
 
 
 func _process(delta: float) -> void:
 	if grid == null:
 		return
 	var dirty := false
+	for idx in arriving.keys():
+		arriving[idx] -= delta
+		if arriving[idx] <= 0.0:
+			arriving.erase(idx)
+			splashes[idx] = SPLASH_TIME
+		dirty = true
 	for idx in splashes.keys():
 		splashes[idx] -= delta
 		if splashes[idx] <= 0.0:
@@ -215,6 +260,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				load_level(level_index - 1)
 			KEY_ESCAPE:
 				get_tree().quit()
+		return
+
+	if event is InputEventMouseMotion:
+		var over := _tile_at(event.position)
+		if over != hover:
+			hover = over
+			dirty = true
 		return
 
 	if not (event is InputEventMouseButton and event.pressed):
@@ -260,6 +312,12 @@ func _tile_at(screen_pos: Vector2) -> Vector2i:
 	return Vector2i(floori(local.x), floori(local.y))
 
 
+## The cell the cursor is over, or whatever _tile_at returns off-board. Hit-testing
+## lives in _tile_at and nowhere else: hover and click must agree about which tile
+## is under the pointer, and two copies of that arithmetic is how they stop agreeing.
+var hover := Vector2i(-1, -1)
+
+
 func _tile_rect(pos: Vector2i) -> Rect2:
 	return Rect2(MARGIN + Vector2(pos) * TILE_SIZE, Vector2.ONE * TILE_SIZE)
 
@@ -281,9 +339,19 @@ func _draw_tile(pos: Vector2i) -> void:
 	var tile := grid.at(pos)
 	var rect := _tile_rect(pos)
 	var idx := grid.index(pos)
-	var is_wet := wet.has(idx)
+	# Wet to the rules the instant the BFS says so; wet on screen once the water has had time
+	# to travel here. Only drawing reads this.
+	var is_wet := wet.has(idx) and not arriving.has(idx)
 
-	draw_rect(rect.grow(-2), SAND)
+	# Full bleed, no inset: the 2px gap drew a border around every cell and turned one
+	# slab of rock into a grid of separate cards, which fights the thing the channel art
+	# does on purpose -- an opening runs to the tile edge and fuses with its neighbour.
+	draw_rect(rect, SAND)
+	# Only a tile the player can actually turn lifts. Promising an affordance on a
+	# barnacled tile, bare sand or a cross would be a lie, and a cross is a rotation
+	# no-op the engine already excludes.
+	if pos == hover and tile.can_rotate() and tile.rotation_period() > 1:
+		draw_rect(rect, HOVER)
 	if tile.kind == Tile.Kind.EMPTY:
 		return
 
@@ -298,11 +366,15 @@ func _draw_tile(pos: Vector2i) -> void:
 		var crust: Variant = art.get("locked_%s_%s" % [_sides_key(tile), state])
 		if crust != null:
 			_draw_sprite(crust, rect)
+			# A barnacled one-way still has to show its arrow, or levels 16-18 lose the
+			# one thing the player is reading.
+			_draw_arrow_overlay(tile, rect, idx, state)
 			return
 
 	var sprite: Variant = art.get("%s_%s" % [_facing_key(tile), state])
 	if sprite != null:
 		_draw_sprite(sprite, rect)
+		_draw_arrow_overlay(tile, rect, idx, state)
 		_draw_locked_pips(tile, rect)
 		return
 	var shape_rot := tile.shape_rot()
@@ -330,13 +402,33 @@ func _draw_tile(pos: Vector2i) -> void:
 			# A ring: water gets in and stops there.
 			draw_arc(centre, 22.0, 0.0, TAU, 24, WATER_DEEP if is_wet else ROCK, 4.0)
 		Tile.Kind.ONEWAY:
-			_draw_arrow(centre, tile.out_dir, WATER_DEEP if is_wet else ROCK)
+			# Greyed while it is turning water away -- a placeholder for whatever
+			# treatment Cove and Maren settle on, but never an invisible refusal.
+			var arrow := LOCKED if refusing.has(idx) else (WATER_DEEP if is_wet else ROCK)
+			_draw_arrow(centre, tile.out_dir, arrow)
 		Tile.Kind.CRAB:
 			draw_rect(Rect2(centre - Vector2(8, 8), Vector2(16, 16)), CRITTER)
 		_:
 			pass
 
 	_draw_locked_pips(tile, rect)
+
+
+## Refusing is a treatment on the arrow, not a fifth facing: same key, `_refused` suffix,
+## falling back to the plain arrow until that art exists. It is load-bearing -- levels 14,
+## 16, 17 and 18 are built on the player seeing an arrow turn water away -- and it is a
+## steady state rather than a flash, so it has to stay legible while the player thinks.
+func _draw_arrow_overlay(tile: Tile, rect: Rect2, idx: int, state: String) -> void:
+	if tile.kind != Tile.Kind.ONEWAY:
+		return
+	var key := "%s_%s" % [_arrow_key(tile), state]
+	var arrow: Variant = null
+	if refusing.has(idx):
+		arrow = art.get(key + "_refused")
+	if arrow == null:
+		arrow = art.get(key)
+	if arrow != null:
+		_draw_sprite(arrow, rect)
 
 
 func _draw_locked_pips(tile: Tile, rect: Rect2) -> void:
