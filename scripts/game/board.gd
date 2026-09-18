@@ -266,7 +266,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var over := _tile_at(event.position)
 		if over != hover:
 			hover = over
-			dirty = true
+			queue_redraw()
 		return
 
 	if not (event is InputEventMouseButton and event.pressed):
