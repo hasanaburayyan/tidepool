@@ -86,8 +86,8 @@ def starfish(rescued: bool):
     quiet work: "something is wrong here" is legible before a player knows the rules.
     """
     if rescued:
-        return lambda a: 5.0 + 8.0 * max(0.0, math.cos(5 * a - math.pi / 2)) ** 0.55
-    return lambda a: 4.0 + 3.6 * max(0.0, math.cos(5 * a - math.pi / 2 + 0.35)) ** 0.8
+        return lambda a: 5.8 + 8.6 * max(0.0, math.cos(5 * a - math.pi / 2)) ** 0.55
+    return lambda a: 5.6 + 4.4 * max(0.0, math.cos(5 * a - math.pi / 2 + 0.35)) ** 0.8
 
 
 def anemone(rescued: bool):
@@ -97,8 +97,15 @@ def anemone(rescued: bool):
     are told apart by silhouette at a glance and not by counting points.
     """
     if rescued:
-        return lambda a: 7.5 + 4.5 * math.cos(8 * a) ** 3
-    return lambda a: 5.2 + 1.1 * math.cos(8 * a) ** 3
+        return lambda a: 9.0 + 5.4 * math.cos(8 * a) ** 3
+    return lambda a: 7.2 + 1.3 * math.cos(8 * a) ** 3
 
+
+## How big the STRANDED shape is, and why it is not smaller. Stranded is the state a player
+## looks at for almost the whole level - it is the objective, and the eye has to find it
+## first. A first cut drew it at 12-15px of a 32px canvas so that rescue would open 2.5x,
+## and in the level 8 screenshot that made the goal the smallest thing on the board. Same
+## trade the Director made for the sponge: presence at rest beats contrast on change. The
+## rescue still has to open by at least 1.4x, and `build.py` enforces that.
 
 SHAPES = {"starfish": starfish, "anemone": anemone}
