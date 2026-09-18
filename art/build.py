@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import critters
+import icon
 import tiles
 from png import Canvas, hex_to_rgb
 
@@ -545,6 +546,10 @@ def main() -> None:
     scaled(scene, 4).save(os.path.join(PREVIEW_OUT, "junction_4x.png"))
     scaled(greyscale(scene), 4).save(os.path.join(PREVIEW_OUT, "junction_4x_greyscale.png"))
 
+    # The app icon is built from the same sprites, so it can never drift off palette again.
+    icon_path = icon.write(pal, ROOT)
+    scaled(icon.compose(pal), 4).save(os.path.join(PREVIEW_OUT, "icon_4x.png"))
+    print("\nwrote %s from the game's own sprites" % os.path.relpath(icon_path, ROOT))
     print("\nwrote %d tile sprites to assets/tiles/ and 9 contact sheets to art/preview/" % len(written))
     for p in written:
         print("  " + os.path.relpath(p, ROOT))
