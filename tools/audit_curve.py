@@ -4,9 +4,11 @@
 Two questions a par-checker cannot answer, both of which are design claims I have
 made in writing and should therefore be able to fail:
 
-  1. TEACHING ORDER - does any level use a mechanic before the level that
-     introduces it? `tidepool-ships-24` promises one-way at 13 and sponges at 19,
-     and the whole no-tutorial-screens decision rests on that being true.
+  1. TEACHING ORDER - does every mechanic first appear at exactly the level that
+     introduces it? `tidepool-ships-24` promises corners at 2, tees at 3, crosses at
+     5, one-way at 13 and sponges at 19, and the whole no-tutorial-screens decision
+     rests on that being true. A shape this file can detect but does not list is
+     itself a failure: an unchecked claim is the thing this tool exists to prevent.
 
   2. "COUNTER-CLOCKWISE IS REWARDED, NEVER REQUIRED" - right-click is a shortcut,
      not a skill gate. A player who never discovers it must still finish every
@@ -19,7 +21,11 @@ Exit 1 if either claim is false.
 import sys, re, pathlib
 
 PERIOD = {"I": 2, "L": 4, "T": 4, "X": 1, "E": 4, "O": 4, "P": 2, "C": 2}
-INTRODUCES = {"one-way": 13, "sponge": 19}   # per tidepool-ships-24
+# Per tidepool-ships-24. Every shape the audit can detect must appear here, or the
+# check silently narrows to whatever happens to be listed - Cove caught exactly that:
+# corner/tee/cross were detected, recorded, and then never asked about, so a level 2
+# opening with a cross would have passed clean.
+INTRODUCES = {"corner": 2, "tee": 3, "cross": 5, "one-way": 13, "sponge": 19}
 STAR_2_MARGIN = 2                             # 2 stars = par + 2
 
 
@@ -59,11 +65,11 @@ def main():
         lid, _, cells, _ = parse(path)
         for feat in features(cells):
             seen.setdefault(feat, lid)
-            want = INTRODUCES.get(feat)
-            if want is not None and lid < want:
-                print("   FAIL level %d uses %s, introduced at %d" % (lid, feat, want))
+            if feat not in INTRODUCES:
+                print("   FAIL %s is detected but has no entry in INTRODUCES, so nothing"
+                      " checks where it first appears" % feat)
                 bad += 1
-    for feat, want in INTRODUCES.items():
+    for feat, want in sorted(INTRODUCES.items(), key=lambda kv: kv[1]):
         got = seen.get(feat)
         ok = got == want
         bad += 0 if ok else 1
