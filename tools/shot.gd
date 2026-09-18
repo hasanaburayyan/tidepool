@@ -1,4 +1,11 @@
 extends SceneTree
+
+## Tools run with `--script` do NOT get the global class registry the editor builds, so a
+## bare `class_name` is undeclared here unless the project happens to have been imported
+## already. Preloading by path makes the tool work on a fresh checkout, which is exactly
+## where it is most needed. (Cove hit this on main.)
+const TideFormat = preload("res://scripts/core/tide_format.gd")
+
 ## Loads the game, optionally plays a few moves, and saves a PNG. Needs a real window:
 ## the headless renderer draws nothing, so this must run windowed.
 ##   godot --path . --script res://tools/shot.gd -- res://screenshots/x.png [level] [moves]

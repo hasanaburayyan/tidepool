@@ -1,4 +1,14 @@
 extends SceneTree
+
+## Tools run with `--script` do NOT get the global class registry the editor builds, so a
+## bare `class_name` is undeclared here unless the project happens to have been imported
+## already. Preloading by path makes the tool work on a fresh checkout, which is exactly
+## where it is most needed. (Cove hit this on main.)
+const TideFormat = preload("res://scripts/core/tide_format.gd")
+const Grid = preload("res://scripts/core/grid.gd")
+const Flow = preload("res://scripts/core/flow.gd")
+const Validator = preload("res://scripts/core/validator.gd")
+
 ## Cross-checks every .tide level against the engine that will actually play it.
 ##
 ##   Godot --headless --path . --script res://tools/verify_levels.gd [-- res://levels]
