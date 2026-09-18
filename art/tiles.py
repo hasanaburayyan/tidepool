@@ -17,7 +17,7 @@ Two rules from the art direction are enforced structurally, not by eye:
    silhouette cannot drift and the shader's tween cannot wobble.
 """
 
-from png import Canvas
+from png import Canvas, TRANSPARENT
 
 SIZE = 32
 ## Channel floor occupies rows/cols FLOOR_LO..FLOOR_HI; the 1px Deep Umber bank sits just
@@ -225,3 +225,220 @@ def _barnacles(channel: set, bank: set) -> set:
             continue
         shells |= ring
     return shells
+
+
+## ---------------------------------------------------------------------------
+## One-way arrows
+##
+## A one-way is not a shape of channel - the engine lets any mask be one, it just needs an
+## opening on `out_dir` (`level_io.gd` refuses the level otherwise). So the arrow is an
+## overlay composited onto whatever tile is underneath, not eleven more baked sprites, and
+## it is named for its exit because that is what the level format stores.
+##
+## This is the load-bearing sprite in the game. Levels 14, 16, 17 and 18 all teach by
+## letting a player watch an arrow refuse water. If "refusing" and "broken" look the same,
+## four levels stop teaching what they are for.
+## ---------------------------------------------------------------------------
+
+## Quarter-turns counter-clockwise from the canonical chevron, which points EAST. This is
+## deliberately not the engine's N,E,S,W side order: that order numbers sides, this one
+## counts rotations from the one orientation actually drawn.
+ROT_FROM_EAST = {"E": 0, "N": 1, "W": 2, "S": 3}
+
+## The chevron, drawn once pointing east and rotated into the other three facings by
+## turning its *coordinates*, not its pixels. Rotating a coordinate is exact; rotating a
+## rendered image re-samples it and rounds a crisp diagonal into mush.
+def _rot_ccw(p: tuple) -> tuple:
+    return (p[1], SIZE - 1 - p[0])
+
+
+def _chevron_east() -> tuple:
+    """Two arms meeting at a point on the east side, spanning the full channel width.
+
+    It fills the channel top to bottom on purpose. A small arrow floating in the middle of
+    the water would read as decoration; one that spans the opening reads as a thing water
+    has to get past. Returns (body, highlight) - the highlight trails behind the arms so
+    the arrow looks like it is cutting forward rather than sitting still.
+    """
+    body, highlight = set(), set()
+    reach = (FLOOR_HI - FLOOR_LO) // 2  # 4: half the channel, so the arms just reach both banks
+    for k in range(reach + 1):
+        for (x, y) in ((FLOOR_HI - 1 - k, FLOOR_LO + reach - k), (FLOOR_HI - 1 - k, FLOOR_LO + reach + 1 + k)):
+            body.add((x, y))
+            body.add((x - 1, y))   # 2px thick, or the arms vanish at 1x
+            highlight.add((x - 2, y))
+    return body, highlight - body
+
+
+def arrow_cells(out_dir: str) -> tuple:
+    """(body, highlight) for an arrow exiting through `out_dir`."""
+    body, highlight = _chevron_east()
+    for _ in range(ROT_FROM_EAST[out_dir]):
+        body = {_rot_ccw(p) for p in body}
+        highlight = {_rot_ccw(p) for p in highlight}
+    return body, highlight
+
+
+def _gate_cells(out_dir: str) -> set:
+    """A bar across the channel on the entry side of the arrow: the sluice is shut.
+
+    Sits behind the chevron, where water arriving the wrong way would pile up against it.
+    """
+    bar = set()
+    for k in (0, 1):
+        for i in range(FLOOR_LO, FLOOR_HI + 1):
+            bar.add((FLOOR_LO + k, i))
+    for _ in range(ROT_FROM_EAST[out_dir]):
+        bar = {_rot_ccw(p) for p in bar}
+    return bar
+
+
+def _backwash_cells(out_dir: str) -> set:
+    """Short ticks on the entry side, angled back the way the water came.
+
+    Water reaching the arrow from the wrong side and turning around. Motion rather than
+    absence: the tile is doing something, not failing to do something.
+    """
+    ticks = set()
+    for row in (FLOOR_LO + 1, FLOOR_LO + 4, FLOOR_LO + 7):
+        for k in range(3):
+            ticks.add((FLOOR_LO + 1 + k, row + (k if row < FLOOR_LO + 5 else -k)))
+    for _ in range(ROT_FROM_EAST[out_dir]):
+        ticks = {_rot_ccw(p) for p in ticks}
+    return ticks
+
+
+def render_arrow(out_dir: str, wet: bool, pal: dict, refused: str = "") -> Canvas:
+    """A 32x32 transparent overlay: the arrow alone, to composite onto any tile.
+
+    `refused` picks the treatment for an arrow that is being asked to pass water backwards:
+    "" (flowing), "gate", "grey" or "backwash". The Director chooses one; the others are
+    generated so the choice is made by looking rather than by reading a description.
+    """
+    img = Canvas(SIZE, SIZE, TRANSPARENT)
+    body, highlight = arrow_cells(out_dir)
+
+    if refused == "gate":
+        for (x, y) in _gate_cells(out_dir):
+            img[x, y] = pal["outline"]
+    if refused == "backwash":
+        for (x, y) in _backwash_cells(out_dir):
+            img[x, y] = pal["outline"]
+
+    # The highlight rides the floor it sits on - Shimmer over water, Dry Sand over a dry
+    # channel - so the arrow is legible on either state without the body ever moving. That
+    # is the only thing `wet` changes here, which is rule 2 holding for the overlay too.
+    edge = pal["channel_gloss"] if wet else pal["rock_body"]
+    for (x, y) in highlight:
+        img[x, y] = edge
+    # "grey" is the one treatment that weakens the arrow instead of adding to it: the body
+    # drops from Deep Umber to Wet Sand. Included because the levels describe it, and shown
+    # in greyscale next to the others precisely so we can see what that costs.
+    for (x, y) in body:
+        img[x, y] = pal["rock_speckle"] if refused == "grey" else pal["outline"]
+    return img
+
+## ---------------------------------------------------------------------------
+## Sponges
+##
+## The opposite case to the one-way arrow, and the difference is worth naming. An arrow is
+## a shape plus a direction - two things that vary independently, so it composites. A
+## sponge is a different *material*: thirsty rock that water goes into and never out of.
+## It is a whole tile, `sponge_<sides>_<state>`, and the format only allows it on a
+## straight, so it is four files.
+##
+## "Full" means an objective is complete, which makes it the loudest state change in the
+## game. So the change is the *silhouette*: a dry sponge is a shrunken, pitted lump and a
+## full one is swollen fat enough to bulge past the channel it sits in. That deliberately
+## breaks rule 2, which is a channel rule - a channel must not change shape because a
+## shader tweens it, and a sponge must, because a player has to read it from across the
+## board without looking for it.
+## ---------------------------------------------------------------------------
+
+SPONGE_R_DRY = 6.5    # 13px across against a 10px channel: it bulges even when empty
+SPONGE_R_FULL = 11.0  # nearly twice the diameter again, swollen well past the banks
+
+## Maren's call, and it is a trade rather than a free win. A dry sponge narrower than its
+## channel had the bigger swell, but it sat inside the banks and read as a channel with
+## texture in it - a player could route water into a thirsty tile without ever noticing it
+## was one. Widening the dry lump until it bulges spends some of the swell contrast to buy
+## presence at rest. The resting state has to say "thirsty" before any water arrives; the
+## swell only has to say "done", and it still has 184 pixels to say it with.
+
+
+def _centre_block() -> set:
+    return {(x, y) for y in range(FLOOR_LO, FLOOR_HI + 1) for x in range(FLOOR_LO, FLOOR_HI + 1)}
+
+
+def _wrinkle(x: int, y: int) -> float:
+    """How far the dry sponge's edge is pulled in at this pixel. Deterministic.
+
+    Only the dry state is wrinkled. Drying out is what puckers a sponge; a full one is
+    taut, so its edge is smooth. The two silhouettes therefore differ in character as well
+    as in size, which is the part that survives being glanced at.
+    """
+    h = (x * 2246822519 + y * 3266489917) & 0xFFFFFFFF
+    h = (h ^ (h >> 13)) * 668265263 & 0xFFFFFFFF
+    return (h % 3) * 0.9
+
+
+def sponge_body(mask: int, full: bool) -> set:
+    """The sponge itself plus the channel arms that feed it.
+
+    The arms keep the channel's exact width and position so a sponge meets its neighbours
+    the way any other tile does - the water has to visibly arrive. Everything inside is a
+    lump instead of a cut, which is what makes it read as a different material rather than
+    as a channel with something in it.
+    """
+    arms = channel_cells(mask) - _centre_block()
+    r = SPONGE_R_FULL if full else SPONGE_R_DRY
+    c = (SIZE - 1) / 2.0
+    blob = set()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            limit = r if full else r - _wrinkle(x, y)
+            if ((x - c) ** 2 + (y - c) ** 2) ** 0.5 <= limit:
+                blob.add((x, y))
+    return arms | blob
+
+
+def _pores(body: set, bank: set, full: bool) -> set:
+    """Holes in the sponge. Wide open when dry, squeezed near shut when full.
+
+    A second reading of the same state at a second scale: the silhouette carries it from
+    across the board, the pores carry it when a player is looking right at the tile.
+    """
+    depth = _depth_map(body, bank)
+    out = set()
+    for (x, y) in body:
+        if depth.get((x, y), 0) < 3:
+            continue
+        h = (x * 374761393 + y * 1274126177) & 0xFFFFFFFF
+        h = (h ^ (h >> 11)) * 2654435761 & 0xFFFFFFFF
+        if h % 7:
+            continue
+        if full:
+            out.add((x, y))  # pinched shut
+        else:
+            out |= {(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)}
+    return {p for p in out if p in body and depth.get(p, 0) >= 2}
+
+
+def render_sponge(mask: int, full: bool, pal: dict) -> Canvas:
+    """One 32x32 sponge tile. `full` is the objective-complete state."""
+    body = sponge_body(mask, full)
+    bank = _bank_cells(body)
+
+    img = Canvas(SIZE, SIZE, pal["rock_body"])
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if (x, y) not in body and (x, y) not in bank and _is_speckle(x, y):
+                img[x, y] = pal["rock_speckle"]
+
+    for (x, y) in bank:
+        img[x, y] = pal["outline"]
+    for (x, y) in body:
+        img[x, y] = pal["channel_wet"] if full else pal["channel_dry"]
+    for (x, y) in _pores(body, bank, full):
+        img[x, y] = pal["outline"]
+    return img

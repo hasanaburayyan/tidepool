@@ -58,9 +58,9 @@ def greyscale(img: Canvas) -> Canvas:
     out = Canvas(img.width, img.height)
     for y in range(img.height):
         for x in range(img.width):
-            r, g, b = img[x, y]
+            r, g, b, a = img[x, y]
             v = round(0.2126 * r + 0.7152 * g + 0.0722 * b)
-            out[x, y] = (v, v, v)
+            out[x, y] = (v, v, v, a)
     return out
 
 
@@ -136,6 +136,54 @@ def assert_masks_distinct(pal: dict) -> None:
     print("  ok   %d tile pictures, %d distinct in greyscale" % (len(variants), len(seen)))
 
 
+## The format only allows a sponge on a straight, so this is the whole family: four files.
+SPONGE_MASKS = ["EW", "NS"]
+
+
+def assert_sponge_swells(mask: int, pal: dict) -> None:
+    """"Full" is an objective complete, so it has to be a change of silhouette.
+
+    Three claims, all checkable. The sponge only ever grows, so the change reads as
+    swelling rather than as a different tile appearing. It grows enough to see from across
+    the board. And the dry sponge is not just a channel with a lump in it - desaturated,
+    it is a different picture from the plain channel of the same mask, because a player has
+    to know a tile is thirsty *before* they route water into it.
+    """
+    name = tiles.name_from_mask(mask)
+    dry_body = tiles.sponge_body(mask, False)
+    full_body = tiles.sponge_body(mask, True)
+
+    if not dry_body < full_body:
+        raise SystemExit("FAIL sponge %s: full is not a strict superset of dry - it must only swell" % name)
+    growth = len(full_body) - len(dry_body)
+    if growth < 150:
+        raise SystemExit("FAIL sponge %s: swells by only %d pixels, too quiet for an objective" % (name, growth))
+
+    plain = greyscale(tiles.render(mask, False, pal))
+    thirsty = greyscale(tiles.render_sponge(mask, False, pal))
+    if not diff_pixels(plain, thirsty):
+        raise SystemExit("FAIL sponge %s: dry sponge is indistinguishable from a plain channel" % name)
+    print("  ok   %-4s swells %d -> %d pixels (+%d), and reads as thirsty rock when dry"
+          % (name, len(dry_body), len(full_body), growth))
+
+
+def build_sponge_sheet(pal: dict) -> Canvas:
+    """Plain channel, dry sponge, full sponge - in a row, per mask.
+
+    Three tiles because the sponge has to lose two arguments at once: it must not look like
+    a channel, and full must not look like dry.
+    """
+    cols = []
+    for name in SPONGE_MASKS:
+        mask = tiles.mask_from_name(name)
+        cols += [tiles.render(mask, False, pal), tiles.render_sponge(mask, False, pal),
+                 tiles.render_sponge(mask, True, pal)]
+    sheet = Canvas(tiles.SIZE * len(cols), tiles.SIZE, pal["outline"])
+    for i, img in enumerate(cols):
+        sheet.blit(img, i * tiles.SIZE, 0)
+    return sheet
+
+
 def build_family_sheet(pal: dict, locked: bool = False) -> Canvas:
     """Every mask, dry on the top row and wet on the bottom, in mask order.
 
@@ -179,27 +227,75 @@ JUNCTION_SOURCE = (1, 0)  # (row, col)
 _STEPS = ((-1, 0, "N", "S"), (1, 0, "S", "N"), (0, -1, "W", "E"), (0, 1, "E", "W"))
 
 
+def parse_cell(cell: str) -> tuple:
+    """"EW" is a plain channel; "EW>E" is the same channel as a one-way exiting east."""
+    if ">" in cell:
+        name, out = cell.split(">")
+        return name, out
+    return cell, None
+
+
+def _can_exit(cell: str, side: str) -> bool:
+    name, out = parse_cell(cell)
+    if not tiles.mask_from_name(name) & tiles.DIR_BITS[side]:
+        return False
+    return out is None or side == out
+
+
+def _can_enter(cell: str, side: str) -> bool:
+    name, out = parse_cell(cell)
+    if not tiles.mask_from_name(name) & tiles.DIR_BITS[side]:
+        return False
+    # `tile.gd:can_enter_from` - water cannot swim back in against the arrow.
+    return out is None or side != out
+
+
 def flood(layout: list, source: tuple) -> set:
-    """Which cells the tide reaches. Two tiles connect only when both open on the shared
-    edge, which is the same rule the engine uses, so nothing in the scene is wet because
-    I said so."""
+    """Which cells the tide reaches, by the engine's rules rather than by my say-so.
+
+    Two plain tiles connect only when both open on the shared edge. A one-way additionally
+    refuses to be entered through the side its arrow points out of, which is the whole
+    mechanic of levels 13 to 18 - so the preview cannot show an arrow passing water it
+    would actually stop, and cannot show one refusing water it would actually pass.
+    """
     wet = {source}
     frontier = [source]
     while frontier:
         nxt = []
         for (r, c) in frontier:
-            mask = tiles.mask_from_name(layout[r][c])
             for dr, dc, mine, theirs in _STEPS:
                 nr, nc = r + dr, c + dc
                 if not (0 <= nr < len(layout) and 0 <= nc < len(layout[nr])):
                     continue
-                if (nr, nc) in wet or not mask & tiles.DIR_BITS[mine]:
+                if (nr, nc) in wet or not _can_exit(layout[r][c], mine):
                     continue
-                if tiles.mask_from_name(layout[nr][nc]) & tiles.DIR_BITS[theirs]:
+                if _can_enter(layout[nr][nc], theirs):
                     wet.add((nr, nc))
                     nxt.append((nr, nc))
         frontier = nxt
     return wet
+
+
+def refusals(layout: list, wet: set) -> set:
+    """One-way cells that are dry while wet water presses on the side they point out of.
+
+    This is the exact situation level 14 builds its lesson around: a locked tee staring
+    into an arrow that points back at it. Computing it rather than declaring it means the
+    contact sheet cannot label a tile "refusing" unless it really is.
+    """
+    out = set()
+    for r, row in enumerate(layout):
+        for c, cell in enumerate(row):
+            _, exit_dir = parse_cell(cell)
+            if exit_dir is None or (r, c) in wet:
+                continue
+            for dr, dc, mine, theirs in _STEPS:
+                nr, nc = r + dr, c + dc
+                if not (0 <= nr < len(layout) and 0 <= nc < len(layout[nr])):
+                    continue
+                if mine == exit_dir and (nr, nc) in wet and _can_exit(layout[nr][nc], theirs):
+                    out.add((r, c))
+    return out
 
 
 def build_junction_scene(pal: dict) -> Canvas:
@@ -219,6 +315,49 @@ def build_junction_scene(pal: dict) -> Canvas:
             scene.blit(tiles.render(mask, (r, c) in wet, pal), c * tiles.SIZE, r * tiles.SIZE)
     print("  ok   junction scene: %d of %d tiles reached by the tide" % (len(wet), rows * cols))
     return scene
+
+
+## Five straights in a row and two arrows. The tide enters west. The first arrow points
+## the way the water is already going and passes it; the second points back the way it
+## came, so water arrives at the side the arrow exits through and is refused. The sprites
+## are identical apart from facing, which is the point: the only thing a player has to
+## read is which way the chevron points.
+ONEWAY_LAYOUT = [["EW", "EW>E", "EW", "EW>W", "EW"]]
+ONEWAY_SOURCE = (0, 0)
+## The three put in front of the Director, and the one she chose. The losers stay in the
+## list so the options sheet keeps rendering: the next person to ask "why a gate?" gets to
+## see the same comparison rather than take my word for it.
+REFUSED_STYLES = ["gate", "grey", "backwash"]
+REFUSED_CHOICE = "gate"
+
+
+def render_cell(cell: str, wet: bool, pal: dict, refused: str = "") -> Canvas:
+    """A tile with its arrow already composited, the way board.gd will draw it."""
+    name, out = parse_cell(cell)
+    img = tiles.render(tiles.mask_from_name(name), wet, pal)
+    if out is not None:
+        img.over(tiles.render_arrow(out, wet, pal, refused=refused))
+    return img
+
+
+def build_oneway_scene(pal: dict, refused_style: str) -> Canvas:
+    wet = flood(ONEWAY_LAYOUT, ONEWAY_SOURCE)
+    refused = refusals(ONEWAY_LAYOUT, wet)
+    row = ONEWAY_LAYOUT[0]
+    scene = Canvas(tiles.SIZE * len(row), tiles.SIZE)
+    for c, cell in enumerate(row):
+        style = refused_style if (0, c) in refused else ""
+        scene.blit(render_cell(cell, (0, c) in wet, pal, refused=style), c * tiles.SIZE, 0)
+    return scene
+
+
+def build_refused_options(pal: dict) -> Canvas:
+    """The same strip once per candidate treatment, stacked. A choice made by looking."""
+    sheets = [build_oneway_scene(pal, style) for style in REFUSED_STYLES]
+    out = Canvas(sheets[0].width, sheets[0].height * len(sheets), pal["outline"])
+    for i, s in enumerate(sheets):
+        out.blit(s, 0, i * sheets[0].height)
+    return out
 
 
 def build_strip(pal: dict) -> Canvas:
@@ -262,6 +401,19 @@ def main() -> None:
     for name in TILE_MASKS:
         assert_locked_is_texture(tiles.mask_from_name(name), pal)
 
+    print("\nthe sponge - full means an objective is complete:")
+    for name in SPONGE_MASKS:
+        mask = tiles.mask_from_name(name)
+        assert_sponge_swells(mask, pal)
+        for full in (False, True):
+            path = os.path.join(TILE_OUT, "sponge_%s_%s.png" % (name.lower(), "wet" if full else "dry"))
+            tiles.render_sponge(mask, full, pal).save(path)
+            written.append(path)
+
+    sponges = build_sponge_sheet(pal)
+    scaled(sponges, 4).save(os.path.join(PREVIEW_OUT, "sponge_4x.png"))
+    scaled(greyscale(sponges), 4).save(os.path.join(PREVIEW_OUT, "sponge_4x_greyscale.png"))
+
     strip = build_strip(pal)
     strip.save(os.path.join(PREVIEW_OUT, "strip_1x.png"))
     scaled(strip, 4).save(os.path.join(PREVIEW_OUT, "strip_4x.png"))
@@ -270,6 +422,30 @@ def main() -> None:
     sheet = build_family_sheet(pal)
     scaled(sheet, 3).save(os.path.join(PREVIEW_OUT, "tiles_3x.png"))
     scaled(greyscale(sheet), 3).save(os.path.join(PREVIEW_OUT, "tiles_3x_greyscale.png"))
+
+    print("\nthe one-way arrow:")
+    wet_cells = flood(ONEWAY_LAYOUT, ONEWAY_SOURCE)
+    refused_cells = refusals(ONEWAY_LAYOUT, wet_cells)
+    print("  ok   strip: %d of %d tiles reached, %d arrow refusing"
+          % (len(wet_cells), len(ONEWAY_LAYOUT[0]), len(refused_cells)))
+    if len(refused_cells) != 1:
+        raise SystemExit("FAIL: the teaching strip must show exactly one arrow refusing")
+    for out_dir in "NESW":
+        for wet in (False, True):
+            path = os.path.join(TILE_OUT, "oneway_%s_%s.png" % (out_dir.lower(), "wet" if wet else "dry"))
+            tiles.render_arrow(out_dir, wet, pal).save(path)
+            written.append(path)
+            # The refused sprite the engine looks for before falling back to the plain
+            # arrow. Maren picked `gate`: a refusing arrow is working perfectly - it is the
+            # water that is wrong - and greying out says "disabled", which is the one thing
+            # this sprite must never say.
+            path = os.path.join(TILE_OUT, "oneway_%s_%s_refused.png" % (out_dir.lower(), "wet" if wet else "dry"))
+            tiles.render_arrow(out_dir, wet, pal, refused=REFUSED_CHOICE).save(path)
+            written.append(path)
+
+    options = build_refused_options(pal)
+    scaled(options, 4).save(os.path.join(PREVIEW_OUT, "oneway_options_4x.png"))
+    scaled(greyscale(options), 4).save(os.path.join(PREVIEW_OUT, "oneway_options_4x_greyscale.png"))
 
     compare = build_locked_comparison(pal)
     scaled(compare, 3).save(os.path.join(PREVIEW_OUT, "locked_3x.png"))
