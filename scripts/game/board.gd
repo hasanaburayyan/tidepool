@@ -203,11 +203,16 @@ func _recompute() -> void:
 	queue_redraw()
 
 
+## How far over par still earns two stars. Named because it is a rule, not a number, and
+## tools/audit_curve.py kept its own copy of it -- tools/dump_rules.gd now exports this one.
+const STAR_2_MARGIN := 2
+
+
 ## 3 stars at or under par, 2 within par+2, 1 for solving it at all (design doc §2.4).
 func stars() -> int:
 	if moves <= grid.par:
 		return 3
-	return 2 if moves <= grid.par + 2 else 1
+	return 2 if moves <= grid.par + STAR_2_MARGIN else 1
 
 
 func _process(delta: float) -> void:
