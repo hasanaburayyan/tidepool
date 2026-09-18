@@ -27,6 +27,12 @@ jobs:
       # warning; on something we are about to hand a player it is a failure, because
       # shipping a par no implementation has proven means the level may be beatable
       # in fewer moves than it claims.
+      # A build that cannot be clicked is not a build. This needs a real window, so it
+      # cannot join the headless test job -- but nothing should ever be exported from
+      # code that fails it. TIDE-19 shipped an unplayable build for exactly this gap.
+      - name: Clicks reach the board
+        run: xvfb-run -a godot --path . --script res://tools/click_test.gd
+
       - name: Verify every level (release strictness)
         env:
           TIDEPOOL_RELEASE: "1"
