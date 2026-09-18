@@ -7,6 +7,7 @@ Output is deterministic: running it twice with an unchanged palette produces
 byte-identical PNGs, so `git status` after a build is the test that nothing drifted.
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -332,149 +333,97 @@ def build_locked_comparison(pal: dict) -> Canvas:
     return sheet
 
 
-## A 3x3 pool the tide actually crosses, so the new shapes get judged inside a route
-## instead of in a row. Tide enters the middle-left tile from the west edge.
-JUNCTION_LAYOUT = [
-    ["ES", "SW", "NS"],
-    ["EW", "NESW", "EW"],
-    ["NE", "NEW", "NS"],
-]
-JUNCTION_SOURCE = (1, 0)  # (row, col)
+## Previews are drawn from REAL levels, using the engine's own flow results.
+##
+## These used to be synthetic layouts coloured by `flood`, a Python copy of the engine's
+## connection rule. A second copy of a rule is not a backup: when the two disagree, the one
+## nobody runs is the one that is wrong. `tools/dump_rules.gd` emits every level's tiles, wet
+## sets and refusals, so these previews draw only what the engine decided.
+##
+## The build stays python3-only. `art/rules.json` is a committed snapshot of the dump,
+## stamped with the hash of every level file it came from. If a level changes after the
+## snapshot, the build FAILS and says how to refresh, instead of drawing a preview the
+## engine would disagree with.
+RULES = os.path.join(ROOT, "art", "rules.json")
+REFRESH = ("godot --headless --path . --import && "
+           "godot --headless --path . --script res://tools/dump_rules.gd && "
+           "python3 art/build.py --snapshot-rules")
+JUNCTION_LEVEL = 9     # "Crossroads": a cross inside a real route
+REFUSAL_LEVEL = 14     # "Wrong Way": the level built on an arrow refusing
 
-## (row delta, col delta, opening I need, opening my neighbour needs)
-_STEPS = ((-1, 0, "N", "S"), (1, 0, "S", "N"), (0, -1, "W", "E"), (0, 1, "E", "W"))
-
-
-def parse_cell(cell: str) -> tuple:
-    """"EW" is a plain channel; "EW>E" is the same channel as a one-way exiting east."""
-    if ">" in cell:
-        name, out = cell.split(">")
-        return name, out
-    return cell, None
-
-
-def _can_exit(cell: str, side: str) -> bool:
-    name, out = parse_cell(cell)
-    if not tiles.mask_from_name(name) & tiles.DIR_BITS[side]:
-        return False
-    return out is None or side == out
-
-
-def _can_enter(cell: str, side: str) -> bool:
-    name, out = parse_cell(cell)
-    if not tiles.mask_from_name(name) & tiles.DIR_BITS[side]:
-        return False
-    # `tile.gd:can_enter_from` - water cannot swim back in against the arrow.
-    return out is None or side != out
-
-
-def flood(layout: list, source: tuple) -> set:
-    """Which cells the tide reaches, by the engine's rules rather than by my say-so.
-
-    Two plain tiles connect only when both open on the shared edge. A one-way additionally
-    refuses to be entered through the side its arrow points out of, which is the whole
-    mechanic of levels 13 to 18 - so the preview cannot show an arrow passing water it
-    would actually stop, and cannot show one refusing water it would actually pass.
-    """
-    wet = {source}
-    frontier = [source]
-    while frontier:
-        nxt = []
-        for (r, c) in frontier:
-            for dr, dc, mine, theirs in _STEPS:
-                nr, nc = r + dr, c + dc
-                if not (0 <= nr < len(layout) and 0 <= nc < len(layout[nr])):
-                    continue
-                if (nr, nc) in wet or not _can_exit(layout[r][c], mine):
-                    continue
-                if _can_enter(layout[nr][nc], theirs):
-                    wet.add((nr, nc))
-                    nxt.append((nr, nc))
-        frontier = nxt
-    return wet
-
-
-def refusals(layout: list, wet: set) -> set:
-    """One-way cells that are dry while wet water presses on the side they point out of.
-
-    This is the exact situation level 14 builds its lesson around: a locked tee staring
-    into an arrow that points back at it. Computing it rather than declaring it means the
-    contact sheet cannot label a tile "refusing" unless it really is.
-    """
-    out = set()
-    for r, row in enumerate(layout):
-        for c, cell in enumerate(row):
-            _, exit_dir = parse_cell(cell)
-            if exit_dir is None or (r, c) in wet:
-                continue
-            for dr, dc, mine, theirs in _STEPS:
-                nr, nc = r + dr, c + dc
-                if not (0 <= nr < len(layout) and 0 <= nc < len(layout[nr])):
-                    continue
-                if mine == exit_dir and (nr, nc) in wet and _can_exit(layout[nr][nc], theirs):
-                    out.add((r, c))
-    return out
-
-
-def build_junction_scene(pal: dict) -> Canvas:
-    """The pool above, wet where the flood fill actually got to.
-
-    Top-right and bottom-right are straights turned the wrong way: the tee below the
-    cross pushes water east into solid rock and it stops. That refusal is the whole
-    puzzle - a player has to be able to see it before they rotate anything, and here it
-    is visible as a channel that ends at a rock face rather than as a colour.
-    """
-    wet = flood(JUNCTION_LAYOUT, JUNCTION_SOURCE)
-    rows, cols = len(JUNCTION_LAYOUT), len(JUNCTION_LAYOUT[0])
-    scene = Canvas(tiles.SIZE * cols, tiles.SIZE * rows)
-    for r in range(rows):
-        for c in range(cols):
-            mask = tiles.mask_from_name(JUNCTION_LAYOUT[r][c])
-            scene.blit(tiles.render(mask, (r, c) in wet, pal), c * tiles.SIZE, r * tiles.SIZE)
-    print("  ok   junction scene: %d of %d tiles reached by the tide" % (len(wet), rows * cols))
-    return scene
-
-
-## Five straights in a row and two arrows. The tide enters west. The first arrow points
-## the way the water is already going and passes it; the second points back the way it
-## came, so water arrives at the side the arrow exits through and is refused. The sprites
-## are identical apart from facing, which is the point: the only thing a player has to
-## read is which way the chevron points.
-ONEWAY_LAYOUT = [["EW", "EW>E", "EW", "EW>W", "EW"]]
-ONEWAY_SOURCE = (0, 0)
-## The three put in front of the Director, and the one she chose. The losers stay in the
-## list so the options sheet keeps rendering: the next person to ask "why a gate?" gets to
-## see the same comparison rather than take my word for it.
+## The three put in front of the Director, and the one she chose. The losers stay so the
+## options sheet keeps rendering: whoever asks "why a gate?" sees the comparison.
 REFUSED_STYLES = ["gate", "grey", "backwash"]
 REFUSED_CHOICE = "gate"
 
 
-def render_cell(cell: str, wet: bool, pal: dict, refused: str = "") -> Canvas:
-    """A tile with its arrow already composited, the way board.gd will draw it."""
-    name, out = parse_cell(cell)
-    img = tiles.render(tiles.mask_from_name(name), wet, pal)
-    if out is not None:
-        img.over(tiles.render_arrow(out, wet, pal, refused=refused))
+def _level_hashes() -> dict:
+    out = {}
+    for name in sorted(os.listdir(os.path.join(ROOT, "levels"))):
+        if name.endswith(".tide"):
+            with open(os.path.join(ROOT, "levels", name), "rb") as fh:
+                out[name] = hashlib.sha256(fh.read()).hexdigest()
+    return out
+
+
+def snapshot_rules() -> None:
+    """Copy build/rules.json into art/, stamped with the level files it describes."""
+    with open(os.path.join(ROOT, "build", "rules.json")) as fh:
+        data = json.load(fh)
+    data["source_hashes"] = _level_hashes()
+    with open(RULES, "w") as fh:
+        json.dump(data, fh, indent=1, sort_keys=True)
+        fh.write("\n")
+    print("snapshot -> art/rules.json (%d levels)" % len(data["levels"]))
+
+
+def load_rules() -> dict:
+    if not os.path.exists(RULES):
+        raise SystemExit("FAIL: art/rules.json is missing. Refresh it:\n  " + REFRESH)
+    with open(RULES) as fh:
+        data = json.load(fh)
+    if data.get("source_hashes") != _level_hashes():
+        raise SystemExit("FAIL: a level changed since art/rules.json was dumped, so the previews "
+                         "would show what the engine no longer does. Refresh it:\n  " + REFRESH)
+    return data
+
+
+def level_by_id(rules: dict, level_id: int) -> dict:
+    return next(L for L in rules["levels"] if L["id"] == level_id)
+
+
+def _out_name(out) -> str:
+    return "NESW"[out] if isinstance(out, int) else str(out).upper()
+
+
+def render_level(level: dict, when: str, pal: dict, refused_style: str = REFUSED_CHOICE) -> Canvas:
+    """A whole real level from the engine's tiles, wet set and refusals. Nothing is decided here."""
+    w, h = level["width"], level["height"]
+    wet = set(level["wet_" + when])
+    refusing = set(level["refusing_" + when])
+    img = Canvas(tiles.SIZE * w, tiles.SIZE * h, pal["rock_body"])
+    for i, c in enumerate(level["tiles_" + when]):
+        if c["kind"] == "empty":
+            continue
+        mask = tiles.mask_from_name(c["sides"].upper())
+        if c["kind"] == "sponge":
+            tile = tiles.render_sponge(mask, i in wet, pal)
+        else:
+            tile = tiles.render(mask, i in wet, pal, locked=c["locked"])
+        if c["kind"] == "oneway":
+            style = refused_style if i in refusing else ""
+            tile.over(tiles.render_arrow(_out_name(c["out"]), i in wet, pal, refused=style))
+        img.blit(tile, (i % w) * tiles.SIZE, (i // w) * tiles.SIZE)
     return img
 
 
-def build_oneway_scene(pal: dict, refused_style: str) -> Canvas:
-    wet = flood(ONEWAY_LAYOUT, ONEWAY_SOURCE)
-    refused = refusals(ONEWAY_LAYOUT, wet)
-    row = ONEWAY_LAYOUT[0]
-    scene = Canvas(tiles.SIZE * len(row), tiles.SIZE)
-    for c, cell in enumerate(row):
-        style = refused_style if (0, c) in refused else ""
-        scene.blit(render_cell(cell, (0, c) in wet, pal, refused=style), c * tiles.SIZE, 0)
-    return scene
-
-
-def build_refused_options(pal: dict) -> Canvas:
-    """The same strip once per candidate treatment, stacked. A choice made by looking."""
-    sheets = [build_oneway_scene(pal, style) for style in REFUSED_STYLES]
-    out = Canvas(sheets[0].width, sheets[0].height * len(sheets), pal["outline"])
-    for i, s in enumerate(sheets):
-        out.blit(s, 0, i * sheets[0].height)
+def build_refused_options(pal: dict, level: dict) -> Canvas:
+    """Level 14 at its start, once per candidate treatment, stacked. A choice made by looking,
+    now on the actual level whose lesson depends on it."""
+    sheets = [render_level(level, "at_start", pal, style) for style in REFUSED_STYLES]
+    out = Canvas(sheets[0].width, sheets[0].height * len(sheets) + 2 * (len(sheets) - 1), pal["outline"])
+    for i, sh in enumerate(sheets):
+        out.blit(sh, 0, i * (sheets[0].height + 2))
     return out
 
 
@@ -562,12 +511,15 @@ def main() -> None:
     scaled(greyscale(sheet), 3).save(os.path.join(PREVIEW_OUT, "tiles_3x_greyscale.png"))
 
     print("\nthe one-way arrow:")
-    wet_cells = flood(ONEWAY_LAYOUT, ONEWAY_SOURCE)
-    refused_cells = refusals(ONEWAY_LAYOUT, wet_cells)
-    print("  ok   strip: %d of %d tiles reached, %d arrow refusing"
-          % (len(wet_cells), len(ONEWAY_LAYOUT[0]), len(refused_cells)))
-    if len(refused_cells) != 1:
-        raise SystemExit("FAIL: the teaching strip must show exactly one arrow refusing")
+    rules = load_rules()
+    wrong_way = level_by_id(rules, REFUSAL_LEVEL)
+    for when in ("at_start", "when_solved"):
+        n = len(wrong_way["refusing_" + when])
+        if n != 1:
+            raise SystemExit("FAIL: level %d must show exactly one arrow refusing %s, the engine says %d"
+                             % (REFUSAL_LEVEL, when.replace("_", " "), n))
+    print("  ok   level %d %s: exactly one arrow refusing, at start and when solved (engine's flow)"
+          % (REFUSAL_LEVEL, wrong_way["name"]))
     for out_dir in "NESW":
         for wet in (False, True):
             path = os.path.join(TILE_OUT, "oneway_%s_%s.png" % (out_dir.lower(), "wet" if wet else "dry"))
@@ -581,7 +533,7 @@ def main() -> None:
             tiles.render_arrow(out_dir, wet, pal, refused=REFUSED_CHOICE).save(path)
             written.append(path)
 
-    options = build_refused_options(pal)
+    options = build_refused_options(pal, wrong_way)
     scaled(options, 4).save(os.path.join(PREVIEW_OUT, "oneway_options_4x.png"))
     scaled(greyscale(options), 4).save(os.path.join(PREVIEW_OUT, "oneway_options_4x_greyscale.png"))
 
@@ -589,7 +541,7 @@ def main() -> None:
     scaled(compare, 3).save(os.path.join(PREVIEW_OUT, "locked_3x.png"))
     scaled(greyscale(compare), 3).save(os.path.join(PREVIEW_OUT, "locked_3x_greyscale.png"))
 
-    scene = build_junction_scene(pal)
+    scene = render_level(level_by_id(rules, JUNCTION_LEVEL), "when_solved", pal)
     scaled(scene, 4).save(os.path.join(PREVIEW_OUT, "junction_4x.png"))
     scaled(greyscale(scene), 4).save(os.path.join(PREVIEW_OUT, "junction_4x_greyscale.png"))
 
@@ -603,4 +555,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    if "--snapshot-rules" in sys.argv:
+        snapshot_rules()
     main()
