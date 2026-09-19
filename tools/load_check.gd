@@ -27,14 +27,19 @@ func _initialize() -> void:
 	print("ok   the game loads: main.tscn, Board and its script")
 
 	var missing := _missing_sprites()
+	# Anything else under assets/ (critters, the beach map, art nobody listed here): a PNG that
+	# was imported once but is gone from disk now. Exactly what a Mac pull of #45 left behind.
+	for path in _orphaned_imports("res://assets"):
+		if not missing.has(path.get_file().get_basename()):
+			missing.append(path)
 	if not missing.is_empty():
-		print("FAIL %d tile sprites missing or unloadable." % missing.size())
+		print("FAIL %d sprites missing or unloadable." % missing.size())
 		print("     Deleted on a Mac clone? `git restore assets/tiles`. New art not imported? `godot --headless --path . --import`.")
 		for key in missing.slice(0, 12):
 			print("       %s" % key)
 		quit(1)
 		return
-	print("ok   every tile sprite family is complete (%d files)" % _expected_sprites().size())
+	print("ok   every tile sprite family is complete (%d files), no art missing under assets/" % _expected_sprites().size())
 	quit(0)
 
 
@@ -59,10 +64,32 @@ static func _expected_sprites() -> Array[String]:
 			out.append("sponge_%s_%s" % [sides, state])
 	for state in ["dry", "wait", "over"]:
 		out.append("basin_nesw_%s" % state)
+		out.append("locked_basin_nesw_%s" % state)
+	# Barnacled sponges have their own crust (#49); levels 19-21 stand on them.
+	for sides in ["ns", "ew"]:
+		for state in ["dry", "wet"]:
+			out.append("locked_sponge_%s_%s" % [sides, state])
 	for d in dirs:
 		for state in ["dry", "wet"]:
 			for refused in ["", "_refused"]:
 				out.append("oneway_%s_%s%s" % [d, state, refused])
+	return out
+
+
+## Every `x.png.import` under `dir` whose `x.png` is no longer on disk. The .import files are
+## generated, not tracked, so a fresh clone has none to orphan; only a local loss shows up here.
+static func _orphaned_imports(dir_path: String) -> Array[String]:
+	var out: Array[String] = []
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return out
+	for sub in dir.get_directories():
+		out.append_array(_orphaned_imports(dir_path.path_join(sub)))
+	for file_name in dir.get_files():
+		if file_name.ends_with(".png.import"):
+			var source := dir_path.path_join(file_name.trim_suffix(".import"))
+			if not FileAccess.file_exists(source):
+				out.append(source)
 	return out
 
 

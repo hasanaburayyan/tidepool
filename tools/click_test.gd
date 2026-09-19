@@ -107,24 +107,40 @@ func _initialize() -> void:
 				failures += 1
 			else:
 				print("ok   %-16s barnacled tile shakes, costs nothing" % title)
-		# The level's own solution, clicked for real from a fresh board, must rescue every
-		# critter and schedule each one's rescue pop.
-		board.restart()
+	# Every level's own solution, clicked for real from a fresh board, must clear it, rescue every
+	# critter and give each one its rescue pop. verify_levels proves a solution exists in the
+	# sim; this proves a player can click it in the game. The level is reloaded by index and
+	# the title read before the first click, because a click on a cleared board moves on to the
+	# next pool -- so the replay also stops the moment the level clears.
+	var replay: Array = levels if not argv.is_empty() else range(board.levels.size())
+	for level in replay:
+		if level >= board.levels.size():
+			continue
+		board.load_level(level)
+		for _i in 3:
+			await process_frame
+		var title: String = "%d %s" % [level + 1, board.grid.title]
+		var clicked := 0
 		for step in board.solution:
 			for _k in int(step["clicks"]):
-				await _click(board, step["pos"], MOUSE_BUTTON_LEFT if int(step["turns"]) > 0 else MOUSE_BUTTON_RIGHT)
+				if board.cleared:
+					break
+				await _click(board, step["pos"], MOUSE_BUTTON_RIGHT if step.get("ccw", false) else MOUSE_BUTTON_LEFT)
+				clicked += 1
 		var count: int = board.grid.critters.size()
-		if board.rescued.size() != count:
-			print("FAIL %-16s the solution clicked for real rescued %d/%d" % [board.grid.title, board.rescued.size(), count])
+		if not board.cleared or board.rescued.size() != count:
+			print("FAIL %-19s its solution, clicked for real, rescued %d/%d and did not clear" % [
+					title, board.rescued.size(), count])
 			failures += 1
 		elif board.pop_at.size() != count:
-			print("FAIL %-16s %d/%d rescued critters got a rescue pop" % [board.grid.title, board.pop_at.size(), count])
+			print("FAIL %-19s %d/%d rescued critters got a rescue pop" % [title, board.pop_at.size(), count])
 			failures += 1
 		else:
-			print("ok   %-16s solution clicked: %d/%d rescued, each pops" % [board.grid.title, count, count])
+			print("ok   %-19s solution clicked (%d clicks): cleared, %d/%d rescued, each pops" % [
+					title, clicked, count, count])
 
 	print("")
-	print("%d levels clicked, %d FAILED" % [levels.size(), failures])
+	print("%d levels clicked, %d solutions replayed, %d FAILED" % [levels.size(), replay.size(), failures])
 	quit(1 if failures > 0 else 0)
 
 

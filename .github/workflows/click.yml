@@ -9,6 +9,9 @@ on:
     paths:
       - "scenes/**"
       - "scripts/game/**"
+      # click_test also replays every level's solution, so a level or rule change can break it.
+      - "scripts/core/**"
+      - "levels/**"
       - "project.godot"
       - "tools/click_test.gd"
       - ".github/workflows/click.yml"
@@ -29,8 +32,8 @@ jobs:
       - name: Import project (first run generates .godot/)
         run: godot --headless --path . --import || true
       # A board.gd that does not parse makes click_test wait forever rather than fail, hence the timeout.
-      - name: Click levels 1, 5, 13 and 19
-        timeout-minutes: 3
+      - name: Click levels 1, 5, 13 and 19, then replay every level's solution by real clicks
+        timeout-minutes: 8
         run: >
           xvfb-run -a -s "-screen 0 1280x800x24"
           godot --path . --rendering-driver opengl3 --audio-driver Dummy
