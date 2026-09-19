@@ -382,7 +382,14 @@ func _draw_tile(pos: Vector2i) -> void:
 	# A barnacled tile is its own sprite, not a clean tile with a sticker on it: the crust
 	# grows over the channel, so it cannot be composited after the fact.
 	if tile.locked:
-		var crust: Variant = art.get("locked_%s_%s" % [_sides_key(tile), state])
+		# The crust set is drawn per channel shape, so it only stands in for a channel. A
+		# barnacled sponge or basin looks it up under its own name (locked_sponge_ns_dry,
+		# locked_basin_nesw_wait) and, until that art exists, falls through to its own sprite
+		# with the pips. Borrowing the channel crust drew level 19's sponge as a plain pipe.
+		var crust_key := "locked_%s_%s" % [_sides_key(tile), state]
+		if tile.kind == Tile.Kind.SPONGE or tile.kind == Tile.Kind.BASIN:
+			crust_key = "locked_%s_%s" % [_facing_key(tile), state]
+		var crust: Variant = art.get(crust_key)
 		if crust != null:
 			_draw_sprite(crust, rect)
 			# A barnacled one-way still has to show its arrow, or levels 16-18 lose the
