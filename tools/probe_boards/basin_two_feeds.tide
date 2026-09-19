@@ -1,0 +1,21 @@
+# Basin probe board: the basin at r2c3 only overflows once BOTH branches feed it.
+# Same board as tools/spikes/dynamics_probe.py; par here must match the spike's 5.
+id: 90
+name: Basin Two Feeds
+size: 5x4
+par: 5
+tide: 11
+source: r2c0
+grid:
+  .. L0 I1 L0 ..
+  .. I0 .. I0 ..
+  e1 T0 I0 b0 e3
+  .. .. .. .. ..
+critters:
+  r2c4 starfish
+solution:
+  r0c1 cw1
+  r0c3 cw1
+  r0c3 cw1
+  r2c1 ccw1
+  r2c2 cw1

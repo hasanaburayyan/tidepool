@@ -7,37 +7,7 @@ extends RefCounted
 ## Returns the wet set keyed by grid index, so membership is a hash lookup and two
 ## results compare cleanly in a test.
 static func compute(grid: Grid) -> Dictionary:
-	var wet := {}
-	var start := grid.at(grid.source_pos)
-	if start == null or start.kind == Tile.Kind.EMPTY:
-		return wet
-	# The source tile is the mouth of the tide and is wet by definition -- it is fed from
-	# outside the board, not through one of its own openings. The only thing that can stop
-	# the water there is a one-way arrow pointing back out to sea.
-	if start.kind == Tile.Kind.ONEWAY and start.out_dir == grid.source_from:
-		return wet
-
-	var queue: Array[Vector2i] = [grid.source_pos]
-	wet[grid.index(grid.source_pos)] = true
-	var head := 0
-	while head < queue.size():
-		var pos: Vector2i = queue[head]
-		head += 1
-		var tile := grid.at(pos)
-		for dir in Tile.DIRS:
-			if not tile.can_exit_through(dir):
-				continue
-			var npos: Vector2i = pos + Tile.DIR_STEPS[dir]
-			if not grid.in_bounds(npos):
-				continue
-			var nidx := grid.index(npos)
-			if wet.has(nidx):
-				continue
-			if not grid.tiles[nidx].can_enter_from(Tile.opposite(dir)):
-				continue
-			wet[nidx] = true
-			queue.append(npos)
-	return wet
+	return _settle(grid, false)[0]
 
 
 ## How many tiles the water travels to reach each wet tile: the source is 0, its
@@ -47,20 +17,66 @@ static func compute(grid: Grid) -> Dictionary:
 ## recompute -- but twelve tiles turning blue in the same frame reads as a state change
 ## rather than water moving, and the player loses the one cue that says which way it went.
 static func distances(grid: Grid) -> Dictionary:
-	var depth := {}
+	return _settle(grid, true)[0]
+
+
+## The basins passing water on, keyed by grid index. A wet basin NOT in here is sitting
+## part-full, waiting for a second current. Display only, like `refusing`: the board needs
+## it to pick the part-full or overflowing sprite, and "waiting for more" has to be seen.
+static func overflowing(grid: Grid) -> Dictionary:
+	return _settle(grid, false)[1]
+
+
+## A basin (`tidepool-dynamics-proposals` §1) fills from any side but only overflows once
+## water reaches it from two or more. Whether it has two feeds depends on the flow, and the
+## flow depends on which basins overflow, so: walk with the basins known to overflow, count
+## feeds, open the ones that now qualify, walk again. The open set only ever grows -- more
+## water never takes a feed away -- so this stops, after at most one walk per basin plus
+## one. Still no state between calls: same grid in, same answer out.
+##
+## Returns [reached, open]. A level with no basins pays for exactly one walk.
+static func _settle(grid: Grid, with_depth: bool) -> Array:
+	var open := {}
+	while true:
+		var basins: Array[int] = []
+		var reached := _walk(grid, open, with_depth, basins)
+		var grown := {}
+		for idx in basins:
+			if _feeds(grid, reached, open, idx) >= 2:
+				grown[idx] = true
+		if grown.size() == open.size():
+			return [reached, open]
+		open = grown
+	return [{}, {}]
+
+
+## One breadth-first walk from the source. `open` holds the basins allowed to pass water
+## on; every other basin it reaches is recorded in `basins` and treated as a dead end.
+## Values are the step count from the source when `with_depth`, otherwise true.
+static func _walk(grid: Grid, open: Dictionary, with_depth: bool, basins: Array[int]) -> Dictionary:
+	var reached := {}
 	var start := grid.at(grid.source_pos)
 	if start == null or start.kind == Tile.Kind.EMPTY:
-		return depth
+		return reached
+	# The source tile is the mouth of the tide and is wet by definition -- it is fed from
+	# outside the board, not through one of its own openings. The only thing that can stop
+	# the water there is a one-way arrow pointing back out to sea.
 	if start.kind == Tile.Kind.ONEWAY and start.out_dir == grid.source_from:
-		return depth
+		return reached
+
 	var queue: Array[Vector2i] = [grid.source_pos]
-	depth[grid.index(grid.source_pos)] = 0
+	reached[grid.index(grid.source_pos)] = 0 if with_depth else true
 	var head := 0
 	while head < queue.size():
 		var pos: Vector2i = queue[head]
 		head += 1
-		var here: int = depth[grid.index(pos)]
-		var tile := grid.at(pos)
+		var idx := grid.index(pos)
+		var tile: Tile = grid.tiles[idx]
+		if tile.kind == Tile.Kind.BASIN:
+			basins.append(idx)
+			if not open.has(idx):
+				continue
+		var next: Variant = reached[idx] + 1 if with_depth else true
 		for dir in Tile.DIRS:
 			if not tile.can_exit_through(dir):
 				continue
@@ -68,13 +84,41 @@ static func distances(grid: Grid) -> Dictionary:
 			if not grid.in_bounds(npos):
 				continue
 			var nidx := grid.index(npos)
-			if depth.has(nidx):
+			if reached.has(nidx):
 				continue
 			if not grid.tiles[nidx].can_enter_from(Tile.opposite(dir)):
 				continue
-			depth[nidx] = here + 1
+			reached[nidx] = next
 			queue.append(npos)
-	return depth
+	return reached
+
+
+## How many sides of the basin at `idx` water is arriving through: a wet neighbour whose
+## channel leads in. A neighbouring basin only counts once it overflows itself -- a
+## part-full basin passes nothing, so two part-full basins side by side stay part-full.
+## The tide itself counts as a feed when the source tile is a basin.
+static func _feeds(grid: Grid, wet: Dictionary, open: Dictionary, idx: int) -> int:
+	var pos := grid.pos_of(idx)
+	var basin: Tile = grid.tiles[idx]
+	var n := 0
+	for dir in Tile.DIRS:
+		if not basin.can_enter_from(dir):
+			continue
+		if pos == grid.source_pos and dir == grid.source_from:
+			n += 1
+			continue
+		var npos: Vector2i = pos + Tile.DIR_STEPS[dir]
+		if not grid.in_bounds(npos):
+			continue
+		var nidx := grid.index(npos)
+		if not wet.has(nidx):
+			continue
+		var feeder: Tile = grid.tiles[nidx]
+		if feeder.kind == Tile.Kind.BASIN and not open.has(nidx):
+			continue
+		if feeder.can_exit_through(Tile.opposite(dir)):
+			n += 1
+	return n
 
 
 ## The wet set as sorted positions. For readable test failures and debug draws.
@@ -105,6 +149,7 @@ static func rescued(grid: Grid, wet: Dictionary) -> Array[int]:
 ## refusal reads as a bug in the flow (Maren, design doc; `tidepool-engineering` §9).
 static func refusing(grid: Grid, wet: Dictionary) -> Dictionary:
 	var out := {}
+	var open: Variant = null  # Basin states, only worked out if an arrow faces a basin.
 	for y in grid.height:
 		for x in grid.width:
 			var pos := Vector2i(x, y)
@@ -122,7 +167,15 @@ static func refusing(grid: Grid, wet: Dictionary) -> Dictionary:
 				continue
 			# Only a neighbour that is actually open towards us is being turned away; a
 			# wet tile with a wall facing the arrow was never going to enter it.
-			if grid.at(outside).connects(Tile.opposite(tile.out_dir)):
+			var feeder := grid.at(outside)
+			# A part-full basin passes nothing on, so there is nothing at this mouth to
+			# turn away. Showing a refusal there would blame the arrow for the basin.
+			if feeder.kind == Tile.Kind.BASIN:
+				if open == null:
+					open = overflowing(grid)
+				if not open.has(grid.index(outside)):
+					continue
+			if feeder.connects(Tile.opposite(tile.out_dir)):
 				out[grid.index(pos)] = true
 	return out
 

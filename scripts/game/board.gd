@@ -75,6 +75,8 @@ var reset_button := Rect2()
 var art: Dictionary = {}
 ## One-ways currently turning water away, recomputed with the wet set. Display only.
 var refusing: Dictionary = {}
+## Basins passing water on. A wet basin not in here is part-full. Display only.
+var overflowing: Dictionary = {}
 
 
 const KIND_PREFIX := {
@@ -83,6 +85,9 @@ const KIND_PREFIX := {
 	Tile.Kind.SPONGE: "sponge",
 	# A one-way's BASE is an ordinary channel; the arrow goes over it as an overlay.
 	Tile.Kind.ONEWAY: "channel",
+	# Its own prefix, never "channel": falling back would draw a basin with the cross
+	# sprite, and a basin that looks like a cross hides the one rule it teaches.
+	Tile.Kind.BASIN: "basin",
 }
 
 
@@ -188,6 +193,7 @@ func _recompute() -> void:
 	var before := wet
 	wet = Flow.compute(grid)
 	refusing = Flow.refusing(grid, wet)
+	overflowing = Flow.overflowing(grid)
 	# Animate only the difference, and in route order: each newly-wet tile waits its distance
 	# from the nearest newly-wet tile, so the eye follows the path the water actually took.
 	var depth := Flow.distances(grid)
@@ -368,11 +374,22 @@ func _draw_tile(pos: Vector2i) -> void:
 	# engine is the fallback; the drawn placeholder is the fallback to that. Every level
 	# stays playable no matter how much of the set exists.
 	var state := "wet" if is_wet else "dry"
+	# A basin has three looks, not two: dry, part-full waiting for a second current, and
+	# overflowing. Sprite keys basin_nesw_{dry,wait,over}.
+	if tile.kind == Tile.Kind.BASIN and is_wet:
+		state = "over" if overflowing.has(idx) else "wait"
 
 	# A barnacled tile is its own sprite, not a clean tile with a sticker on it: the crust
 	# grows over the channel, so it cannot be composited after the fact.
 	if tile.locked:
-		var crust: Variant = art.get("locked_%s_%s" % [_sides_key(tile), state])
+		# The crust set is drawn per channel shape, so it only stands in for a channel. A
+		# barnacled sponge or basin looks it up under its own name (locked_sponge_ns_dry,
+		# locked_basin_nesw_wait) and, until that art exists, falls through to its own sprite
+		# with the pips. Borrowing the channel crust drew level 19's sponge as a plain pipe.
+		var crust_key := "locked_%s_%s" % [_sides_key(tile), state]
+		if tile.kind == Tile.Kind.SPONGE or tile.kind == Tile.Kind.BASIN:
+			crust_key = "locked_%s_%s" % [_facing_key(tile), state]
+		var crust: Variant = art.get(crust_key)
 		if crust != null:
 			_draw_sprite(crust, rect)
 			# A barnacled one-way still has to show its arrow, or levels 16-18 lose the
@@ -417,6 +434,14 @@ func _draw_tile(pos: Vector2i) -> void:
 			_draw_arrow(centre, tile.out_dir, arrow)
 		Tile.Kind.CRAB:
 			draw_rect(Rect2(centre - Vector2(8, 8), Vector2(16, 16)), CRITTER)
+		Tile.Kind.BASIN:
+			# Placeholder until Cove's two sprites land. Part-full is a ring and overflowing
+			# a solid pool: a change of shape, not colour, so "waiting for more" still reads
+			# in greyscale.
+			if state == "over":
+				draw_circle(centre, 24.0, WATER_DEEP)
+			else:
+				draw_arc(centre, 24.0, 0.0, TAU, 24, WATER_DEEP if is_wet else ROCK, 5.0)
 		_:
 			pass
 

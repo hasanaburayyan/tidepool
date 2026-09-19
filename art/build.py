@@ -14,6 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import beachmap
 import critters
 import icon
 import tiles
@@ -303,6 +304,51 @@ def build_critter_sheet(pal: dict) -> Canvas:
     return sheet
 
 
+BASIN_STATES = ["dry", "wait", "over"]
+
+
+def assert_basin_reads(pal: dict) -> None:
+    """The basin's rule, checked on the sprite: wait passes nothing on, over passes it all.
+
+    A waiting basin may not have water on ANY tile edge - water at the edge would read as
+    flowing out, which is exactly what a one-fed basin does not do. An overflowing basin
+    must have water on all four edges. The lip must be there when dry and waiting and gone
+    when overflowing. And the dry basin must be a different picture from the dry cross in
+    greyscale, or level 25 opens on a basin that looks like a tile you turn.
+    """
+    edges = {"N": [(x, 0) for x in range(tiles.SIZE)], "S": [(x, tiles.SIZE - 1) for x in range(tiles.SIZE)],
+             "W": [(0, y) for y in range(tiles.SIZE)], "E": [(tiles.SIZE - 1, y) for y in range(tiles.SIZE)]}
+    wait, over = tiles.basin_water("wait"), tiles.basin_water("over")
+    if any(p in wait for side in edges.values() for p in side):
+        raise SystemExit("FAIL basin wait: water reaches a tile edge - it would read as flowing out")
+    for side, px in edges.items():
+        if not any(p in over for p in px):
+            raise SystemExit("FAIL basin over: no water leaves through %s" % side)
+    lip = tiles.basin_lip()
+    for state in BASIN_STATES:
+        img = tiles.render_basin(state, pal)
+        shown = sum(1 for p in lip if img[p][:3] == pal["outline"])
+        if (state == "over") == (shown > 0):
+            raise SystemExit("FAIL basin %s: the lip should be %s" % (state, "gone" if state == "over" else "visible"))
+    cross = greyscale(tiles.render(tiles.mask_from_name("NESW"), False, pal))
+    dry = greyscale(tiles.render_basin("dry", pal))
+    changed = len(diff_pixels(cross, dry))
+    if changed < 150:
+        raise SystemExit("FAIL basin dry: only %d px differ from a dry cross - too easy to mistake" % changed)
+    print("  ok   wait keeps water off every edge; over reaches all four; lip visible dry/wait, gone over")
+    print("  ok   dry basin differs from a dry cross on %d px in greyscale" % changed)
+
+
+def build_basin_sheet(pal: dict) -> Canvas:
+    """Dry cross (for comparison), then the basin dry, waiting and overflowing."""
+    cells = [tiles.render(tiles.mask_from_name("NESW"), False, pal)] + \
+            [tiles.render_basin(st, pal) for st in BASIN_STATES]
+    sheet = Canvas(tiles.SIZE * len(cells) + 2 * (len(cells) - 1), tiles.SIZE, pal["outline"])
+    for i, c in enumerate(cells):
+        sheet.blit(c, i * (tiles.SIZE + 2), 0)
+    return sheet
+
+
 def build_family_sheet(pal: dict, locked: bool = False) -> Canvas:
     """Every mask, dry on the top row and wet on the bottom, in mask order.
 
@@ -501,6 +547,16 @@ def main() -> None:
     scaled(crit, 4).save(os.path.join(PREVIEW_OUT, "critters_4x.png"))
     scaled(greyscale(crit), 4).save(os.path.join(PREVIEW_OUT, "critters_4x_greyscale.png"))
 
+    print("\nbasins (levels 25-28) - keys from Marlow, never rotated:")
+    assert_basin_reads(pal)
+    for st in BASIN_STATES:
+        path = os.path.join(TILE_OUT, "basin_nesw_%s.png" % st)
+        tiles.render_basin(st, pal).save(path)
+        written.append(path)
+    bs = build_basin_sheet(pal)
+    scaled(bs, 4).save(os.path.join(PREVIEW_OUT, "basin_4x.png"))
+    scaled(greyscale(bs), 4).save(os.path.join(PREVIEW_OUT, "basin_4x_greyscale.png"))
+
     strip = build_strip(pal)
     strip.save(os.path.join(PREVIEW_OUT, "strip_1x.png"))
     scaled(strip, 4).save(os.path.join(PREVIEW_OUT, "strip_4x.png"))
@@ -546,6 +602,14 @@ def main() -> None:
     scaled(greyscale(scene), 4).save(os.path.join(PREVIEW_OUT, "junction_4x_greyscale.png"))
 
     # The app icon is built from the same sprites, so it can never drift off palette again.
+    print("\nthe beach map (keys fixed by Marlow, spec tidepool-beach-map):")
+    written += beachmap.write_assets(pal, ROOT)
+    demo = {i: ("done", [3, 3, 2, 3, 1, 2, 3, 3, 2, 3, 2, 3, 3, 1][i - 1]) for i in range(1, 15)}
+    demo[15] = ("open", 0)
+    full = beachmap.compose_preview(pal, demo)
+    full.save(os.path.join(PREVIEW_OUT, "beachmap_full.png"))
+    greyscale(full).save(os.path.join(PREVIEW_OUT, "beachmap_full_greyscale.png"))
+
     icon_path = icon.write(pal, ROOT)
     scaled(icon.compose(pal), 4).save(os.path.join(PREVIEW_OUT, "icon_4x.png"))
     print("\nwrote %s from the game's own sprites" % os.path.relpath(icon_path, ROOT))

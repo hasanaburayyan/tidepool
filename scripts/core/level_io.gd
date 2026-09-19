@@ -80,6 +80,15 @@ static func parse(data: Variant, source_name: String = "<level>") -> Dictionary:
 			continue
 		grid.at(pos).kind = Tile.Kind.SPONGE
 
+	for entry in data.get("basins", []):
+		var pos := _to_pos(entry)
+		if not _check_pos(grid, pos, "basin", source_name, errors):
+			continue
+		if grid.at(pos).mask != 0b1111:
+			errors.append("%s: basin at %s must be a four-way cell" % [source_name, pos])
+			continue
+		grid.at(pos).kind = Tile.Kind.BASIN
+
 	for entry in data.get("oneway", []):
 		var pos := _to_pos(entry.get("pos", []))
 		if not _check_pos(grid, pos, "oneway", source_name, errors):
@@ -154,6 +163,7 @@ static func to_dict(grid: Grid) -> Dictionary:
 	var rows: Array[String] = []
 	var locked: Array = []
 	var sponges: Array = []
+	var basins: Array = []
 	var oneway: Array = []
 	for y in grid.height:
 		var row := ""
@@ -166,6 +176,8 @@ static func to_dict(grid: Grid) -> Dictionary:
 			match tile.kind:
 				Tile.Kind.SPONGE:
 					sponges.append([x, y])
+				Tile.Kind.BASIN:
+					basins.append([x, y])
 				Tile.Kind.ONEWAY:
 					oneway.append({"pos": [x, y], "out": Tile.DIR_NAMES[tile.out_dir]})
 		rows.append(row)
@@ -183,6 +195,7 @@ static func to_dict(grid: Grid) -> Dictionary:
 		"grid": rows,
 		"locked": locked,
 		"sponges": sponges,
+		"basins": basins,
 		"oneway": oneway,
 		"critters": critters,
 	}

@@ -45,8 +45,9 @@ BASE = {
     "O": frozenset({N, S}),        # one-way: digit is the direction water EXITS
     "P": frozenset({N, S}),        # sponge: absorbs, never emits
     "C": frozenset({N, S}),        # crab tile: an I-shaped channel carrying a crab
+    "B": frozenset({N, E, S, W}),  # tide basin: overflows only when fed from 2+ sides
 }
-PERIOD = {"I": 2, "L": 4, "T": 4, "X": 1, "E": 4, "O": 4, "P": 2, "C": 2}
+PERIOD = {"I": 2, "L": 4, "T": 4, "X": 1, "E": 4, "O": 4, "P": 2, "C": 2, "B": 1}
 
 
 def rotate(conns, steps):
@@ -306,7 +307,41 @@ class Level:
                 stepped = True
             if not stepped:
                 break
-        return self._flow(state, crabs)[0], crabs
+        return self._settle_basins(state, crabs), crabs
+
+    def _settle_basins(self, state, crabs):
+        """Tide basins (same rule as the engine, PR #44).
+
+        A basin fills from any side but passes water on only once it is fed from two
+        or more distinct sides. A part-full basin feeds nobody, so it cannot be its
+        own second feed, and a basin that is the source counts the tide as one feed.
+        Iterated to a fixpoint: basins only ever gain feeds, so this terminates and
+        stays a stateless recompute of the board."""
+        basins = {p for p, t in self.tiles.items() if t.shape == "B"}
+        if not basins:
+            return self._flow(state, crabs)[0]
+        keys = self.rotatables()
+        rot = {p: state[i] for i, p in enumerate(keys)}
+        rot_of = lambda p: rot.get(p, self.tiles[p].rot)
+        active = set()
+        while True:
+            blocked = set(crabs) | (basins - active)
+            wet, _ = self._flow(state, blocked)
+            newly = set()
+            for b in basins - active:
+                feeds = 1 if b == self.source else 0
+                for d in (N, E, S, W):
+                    q = (b[0] + DELTA[d][0], b[1] + DELTA[d][1])
+                    if q not in wet or q in blocked or q not in self.tiles:
+                        continue
+                    if self.tiles[q].can_exit(OPPOSITE[d], rot_of(q)) and \
+                            self.tiles[b].can_enter(d, rot_of(b)):
+                        feeds += 1
+                if feeds >= 2:
+                    newly.add(b)
+            if not newly:
+                return wet
+            active |= newly
 
     def wet(self, state):
         return self.resolve(state)[0]

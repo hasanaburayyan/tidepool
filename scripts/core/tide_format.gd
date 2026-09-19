@@ -21,6 +21,7 @@ const BASE_SHAPES := {
 	"O": 0b0101,  # N,S -- one-way; the digit is the side water EXITS by
 	"P": 0b0101,  # N,S -- sponge; drinks from either end, emits from neither
 	"C": 0b0101,  # N,S -- crab tile; a plain straight until crab walking lands
+	"B": 0b1111,  # all four -- tide basin; overflows only when fed from two sides. Write B0.
 }
 
 ## Shape letter -> tile kind. Anything not listed is an ordinary channel.
@@ -28,6 +29,7 @@ const SHAPE_KINDS := {
 	"O": Tile.Kind.ONEWAY,
 	"P": Tile.Kind.SPONGE,
 	"C": Tile.Kind.CRAB,
+	"B": Tile.Kind.BASIN,
 }
 
 const ROCK := ".."

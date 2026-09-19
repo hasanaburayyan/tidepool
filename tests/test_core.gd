@@ -30,6 +30,7 @@ func run() -> int:
 	_test_shape_rot()
 	_test_refusing()
 	_test_distances()
+	_test_basin()
 	_test_flow_basics()
 	_test_flow_oneway_and_sponge()
 	_test_level_io()
@@ -127,6 +128,118 @@ func _test_distances() -> void:
 		wet_keys.sort()
 		dist_keys.sort()
 		_eq(dist_keys, wet_keys, "%s: distances covers exactly the wet set" % n)
+
+
+
+## A tide basin overflows only once fed from two sides (`tidepool-dynamics-proposals` §1).
+## The boards are the smallest that show each clause: two branches meeting, one branch
+## alone, and a basin whose second feed is another basin's overflow -- which takes the
+## fixpoint three walks to find, so a single BFS pass would get it wrong.
+const BASIN_PAIR := "id: 1\nname: pair\nsize: 3x3\npar: 1\ntide: 6\nsource: r0c0\ngrid:\n" \
+		+ "  T1 i1 L2\n  L0 B0 L3\n  .. i0 ..\ncritters:\n  r2c1 crab\n"
+const BASIN_CHAIN := "id: 1\nname: chain\nsize: 3x4\npar: 1\ntide: 6\nsource: r0c0\ngrid:\n" \
+		+ "  T1 i1 L2\n  T0 B0 L3\n  L0 B0 ..\n  .. i0 ..\ncritters:\n  r3c1 crab\n"
+const BASIN_LOOP := "id: 1\nname: loop\nsize: 3x2\npar: 1\ntide: 6\nsource: r0c0\ngrid:\n" \
+		+ "  i1 B0 L2\n  .. L0 L3\ncritters:\n  r1c2 crab\n"
+const BASIN_ARROW := "id: 1\nname: facing\nsize: 3x1\npar: 1\ntide: 6\nsource: r0c0\ngrid:\n" \
+		+ "  i1 B0 o3\ncritters:\n  r0c2 crab\n"
+
+
+func _test_basin() -> void:
+	_suite("basin")
+
+	var glyph := TideFormat._cell_to_tile("B0")
+	_eq(glyph.kind, Tile.Kind.BASIN, "B0 parses as a basin")
+	_eq(glyph.mask, 0b1111, "open on all four sides")
+	_eq(glyph.locked, false, "uppercase is not barnacled")
+	_eq(TideFormat._cell_to_tile("b0").locked, true, "lowercase b0 is barnacled")
+	_eq(glyph.rotation_period(), 1, "period 1, so the solver and the click both skip it")
+	_eq(glyph.can_rotate(), false, "and it never turns, barnacled or not")
+	_eq(glyph.shape_rot(), ["b", 0], "one sprite, never turned")
+
+	var pair := TideFormat.parse(BASIN_PAIR, "pair")
+	_check(pair["ok"], "the two-branch board parses: %s" % [pair["errors"]])
+	if pair["ok"]:
+		var g: Grid = pair["grid"]
+		var basin := g.index(Vector2i(1, 1))
+		var below := g.index(Vector2i(1, 2))
+		var wet := Flow.compute(g)
+		_eq(Flow.overflowing(g).keys(), [basin], "fed from W and E, the basin overflows")
+		_eq(wet.has(below), true, "and the water passes through it")
+		_eq(Flow.is_cleared(g, wet), true, "so the critter below is rescued")
+		_eq(_sorted_keys(Flow.distances(g)), _sorted_keys(wet), "distances covers exactly the wet set")
+
+		# Turn the top straight N-S: the east branch goes dry, one feed is left.
+		g.at(Vector2i(1, 0)).rotate_cw()
+		var wet1 := Flow.compute(g)
+		_eq(wet1.has(basin), true, "fed from one side, the basin still fills")
+		_eq(Flow.overflowing(g).is_empty(), true, "but it does not overflow")
+		_eq(wet1.has(below), false, "and nothing passes it")
+		_eq(Flow.is_cleared(g, wet1), false, "so the critter is stranded")
+
+		# Same board with a plain cross: one branch is enough. This is the whole mechanic.
+		g.tiles[basin] = Tile.make(Tile.Kind.CHANNEL, 0b1111)
+		_eq(Flow.compute(g).has(below), true, "a cross in the same spot passes one feed on")
+
+	var chain := TideFormat.parse(BASIN_CHAIN, "chain")
+	_check(chain["ok"], "the chained-basin board parses: %s" % [chain["errors"]])
+	if chain["ok"]:
+		var g2: Grid = chain["grid"]
+		var upper := g2.index(Vector2i(1, 1))
+		var lower := g2.index(Vector2i(1, 2))
+		var exit := g2.index(Vector2i(1, 3))
+		var wet2 := Flow.compute(g2)
+		_eq(_sorted_keys(Flow.overflowing(g2)), [upper, lower],
+				"the upper basin overflows into the lower, whose second feed that is")
+		_eq(wet2.has(exit), true, "so water reaches the critter through both")
+		_eq(_sorted_keys(Flow.distances(g2)), _sorted_keys(wet2), "distances covers exactly the wet set")
+		_eq(Flow.compute(g2), wet2, "deterministic: the same grid gives the same wet set")
+
+		# Cut the upper basin's east feed. It sits part-full, and a part-full basin feeds
+		# nobody, so the lower one is down to its west feed as well.
+		g2.at(Vector2i(2, 0)).rotate_cw()
+		var wet3 := Flow.compute(g2)
+		_eq(wet3.has(upper) and wet3.has(lower), true, "both basins still fill")
+		_eq(Flow.overflowing(g2).is_empty(), true, "a part-full basin does not feed its neighbour")
+		_eq(wet3.has(exit), false, "so the critter is stranded")
+
+	# No bootstrap: a loop leaves the basin east and comes back in from the south. Were the
+	# basin already overflowing, the loop would be its second feed -- but it is not, so the
+	# loop never gets water and the basin never gets the feed.
+	var loop := TideFormat.parse(BASIN_LOOP, "loop")
+	_check(loop["ok"], "the loop board parses: %s" % [loop["errors"]])
+	if loop["ok"]:
+		var g3: Grid = loop["grid"]
+		var wet4 := Flow.compute(g3)
+		_eq(wet4.has(g3.index(Vector2i(1, 0))), true, "the basin fills from its one feed")
+		_eq(Flow.overflowing(g3).is_empty(), true, "its own overflow cannot be its second feed")
+		_eq(wet4.has(g3.index(Vector2i(2, 0))) or wet4.has(g3.index(Vector2i(1, 1))), false,
+				"so the loop stays dry")
+
+	# An arrow whose exit faces a part-full basin is not refusing anything: the basin is
+	# holding its water, not pushing it at the arrow.
+	var facing := TideFormat.parse(BASIN_ARROW, "facing")
+	_check(facing["ok"], "the arrow board parses: %s" % [facing["errors"]])
+	if facing["ok"]:
+		var g4: Grid = facing["grid"]
+		_eq(Flow.refusing(g4, Flow.compute(g4)).is_empty(), true,
+				"a part-full basin at an arrow's mouth is not a refusal")
+
+	# The JSON writer keeps basins: a written level parses back as the same level.
+	if pair["ok"]:
+		var g5: Grid = TideFormat.parse(BASIN_PAIR, "pair")["grid"]
+		var back := LevelIO.parse_json(LevelIO.to_json(g5), "basin round trip")
+		_check(back["ok"], "a level with a basin writes and parses back: %s" % [back["errors"]])
+		if back["ok"]:
+			var b5: Grid = back["grid"]
+			_eq(b5.at(Vector2i(1, 1)).kind, Tile.Kind.BASIN, "the basin is still a basin")
+			_eq(LevelIO.to_dict(b5), LevelIO.to_dict(g5), "the level survives a round trip")
+
+
+func _sorted_keys(d: Dictionary) -> Array:
+	var keys := d.keys()
+	keys.sort()
+	return keys
 
 
 func _test_refusing() -> void:
