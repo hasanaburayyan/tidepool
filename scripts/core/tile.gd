@@ -12,6 +12,7 @@ enum Kind {
 	ONEWAY,   ## Water may only leave through out_dir, and may not enter through it.
 	SPONGE,   ## Soaks water up: it gets wet but passes nothing on.
 	CRAB,     ## Channel with a crab riding it. Crab walking lands in levels 25-40.
+	BASIN,    ## Four-way pool. Fills from any side; passes water on only once fed from two.
 }
 
 const N := 0
@@ -71,7 +72,8 @@ func rotate_cw(times: int = 1) -> void:
 
 
 func can_rotate() -> bool:
-	return not locked and kind != Kind.EMPTY
+	# A basin is the same from every side; turning it would spend tide on nothing.
+	return not locked and kind != Kind.EMPTY and kind != Kind.BASIN
 
 
 ## How many clockwise rotations bring this tile back to where it started.
@@ -109,6 +111,8 @@ func can_exit_through(side: int) -> bool:
 		return false
 	if kind == Kind.ONEWAY:
 		return side == out_dir
+	# A BASIN answers by its mask like a channel. Whether it is passing water on right now
+	# depends on its neighbours, which a tile cannot see; `Flow._settle` owns that gate.
 	return true
 
 
@@ -121,6 +125,8 @@ func can_exit_through(side: int) -> bool:
 func shape_rot() -> Array:
 	if kind == Kind.ONEWAY:
 		return ["o", out_dir]
+	if kind == Kind.BASIN:
+		return ["b", 0]  # Four-way and symmetric: one sprite, never turned.
 	var letter := "x"
 	var base := 0b1111
 	match _open_sides():
