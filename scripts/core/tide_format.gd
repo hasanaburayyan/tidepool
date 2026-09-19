@@ -135,7 +135,10 @@ static func parse(text: String, source_name: String = "<level>") -> Dictionary:
 		else:
 			errors.append("%s: solution step %s must be cwN or ccwN" % [source_name, entry])
 			continue
-		solution.append({"pos": pos, "turns": turns, "clicks": int(move.lstrip("cw"))})
+		# `turns` is the net quarter-turns, which cannot tell cw2 from ccw2; a player (or the click
+		# test) needs the direction too, so it is kept as said.
+		solution.append({"pos": pos, "turns": turns, "clicks": int(move.lstrip("cw")),
+				"ccw": move.begins_with("ccw")})
 
 	# The source. The format gives only a cell, because the tide can only come from
 	# outside: the edge the cell sits on is the direction water arrives from.
