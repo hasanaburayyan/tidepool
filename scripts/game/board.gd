@@ -19,6 +19,8 @@ const LEVEL_DIR := "res://levels"
 const SPLASH_TIME := 0.28
 ## A rescued critter bounces up and back over this long, once the water reaches it on screen.
 const POP_TIME := 0.3
+## On a clear, a wave washes across the board, away from the tide's mouth, over this long.
+const WIPE_TIME := 0.7
 ## The tide notch a click spends drains away over this long, so the cost is seen landing.
 const DRAIN_TIME := 0.35
 ## A barnacled tile the player tries to turn wobbles for this long and says no. Free: the tide
@@ -59,6 +61,9 @@ var rescued: Dictionary = {}
 ## Critter index -> the anim_time its rescue pop starts. Kept for the whole attempt, so it also
 ## tells the draw when to swap the critter to its rescued look. Display only.
 var pop_at: Dictionary = {}
+## anim_time the clear wave starts: when the last critter is reached on screen. Display, plus
+## the gate that keeps a fast double-click from skipping the wave into the next pool.
+var cleared_at := -INF
 ## anim_time of the last tide spent; the notch at index tide_left drains from then. Display only.
 var drained_at := -INF
 ## The level's authored solution, as TideFormat parsed it. The click test replays it.
@@ -200,6 +205,7 @@ func restart() -> void:
 	resetting = 0.0
 	rescued = {}
 	pop_at = {}
+	cleared_at = -INF
 	splashes = {}
 	arriving = {}
 	tide_left = grid.tide
@@ -239,6 +245,10 @@ func _recompute() -> void:
 	# levels/ must never put one on the only path to a critter.
 	if rescued.size() == grid.critters.size() and not grid.critters.is_empty() \
 			and Flow.all_sponges_wet(grid, wet):
+		if not cleared:
+			cleared_at = anim_time
+			for start in pop_at.values():
+				cleared_at = maxf(cleared_at, float(start))
 		cleared = true
 	queue_redraw()
 
@@ -272,6 +282,8 @@ func _process(delta: float) -> void:
 		splashes[idx] -= delta
 		if splashes[idx] <= 0.0:
 			splashes.erase(idx)
+		dirty = true
+	if cleared and anim_time < cleared_at + WIPE_TIME:
 		dirty = true
 	if anim_time < drained_at + DRAIN_TIME:
 		dirty = true
@@ -322,7 +334,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		restart()
 		return
 	if cleared:
-		# Clearing a level is the only thing that moves you on, and any click does it.
+		# Clearing a level is the only thing that moves you on, and any click does it -- once
+		# the wave has washed through, so the click that cleared it can't double into a skip.
+		if anim_time < cleared_at + WIPE_TIME:
+			return
 		load_level(level_index + 1)
 		return
 	if resetting > 0.0:
@@ -386,7 +401,29 @@ func _draw() -> void:
 			_draw_tile(Vector2i(x, y))
 	for i in grid.critters.size():
 		_draw_critter(i)
+	_draw_wipe()
 	_draw_hud()
+
+
+## The level-clear wave: a band of water crossing the whole board, travelling away from the
+## side the tide comes in by, the way the tide itself would run up the beach.
+func _draw_wipe() -> void:
+	var t := (anim_time - cleared_at) / WIPE_TIME
+	if not cleared or t < 0.0 or t >= 1.0:
+		return
+	var board := Rect2(MARGIN, Vector2(grid.width, grid.height) * TILE_SIZE)
+	var dir := -Vector2(Tile.DIR_STEPS[grid.source_from])
+	var band := TILE_SIZE * 1.5
+	var rect := board
+	if dir.x != 0.0:
+		var x := lerpf(-band, board.size.x, t)
+		rect = Rect2(board.position + Vector2(x if dir.x > 0.0 else board.size.x - band - x, 0), Vector2(band, board.size.y))
+	else:
+		var y := lerpf(-band, board.size.y, t)
+		rect = Rect2(board.position + Vector2(0, y if dir.y > 0.0 else board.size.y - band - y), Vector2(board.size.x, band))
+	rect = rect.intersection(board)
+	if rect.has_area():
+		draw_rect(rect, Color(WATER, 0.55))
 
 
 func _draw_tile(pos: Vector2i) -> void:
@@ -586,7 +623,9 @@ func _draw_hud() -> void:
 	draw_string(_font, reset_button.position + Vector2(10, 17), "Reset Pool", 0, -1, 15, TEXT)
 
 	var status := ""
-	if cleared:
+	if cleared and anim_time < cleared_at + WIPE_TIME:
+		status = ""
+	elif cleared:
 		status = "LEVEL CLEAR - %d moves, par %d, %d stars - click for the next pool" % [
 			moves, grid.par, stars()]
 	elif resetting > 0.0:
