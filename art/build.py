@@ -553,6 +553,28 @@ def main() -> None:
         path = os.path.join(TILE_OUT, "basin_nesw_%s.png" % st)
         tiles.render_basin(st, pal).save(path)
         written.append(path)
+    # Barnacled basins and sponges (keys named by Marlow in #48): the same crust as locked
+    # channels. Held to the same claim - it may touch neither the body nor its outline.
+    print("\nbarnacled basins and sponges:")
+    variants = [("locked_basin_nesw_%s" % st, lambda st=st, lk=False: tiles.render_basin(st, pal, locked=lk),
+                 tiles.basin_body()) for st in BASIN_STATES]
+    for m in SPONGE_MASKS:
+        for full in (False, True):
+            variants.append(("locked_sponge_%s_%s" % (m.lower(), "wet" if full else "dry"),
+                             lambda m=m, full=full, lk=False: tiles.render_sponge(tiles.mask_from_name(m), full, pal, locked=lk),
+                             tiles.sponge_body(tiles.mask_from_name(m), full)))
+    for name, draw, body in variants:
+        plain, crusted = draw(), draw(lk=True)
+        changed = diff_pixels(plain, crusted)
+        guarded = body | tiles._bank_cells(body)
+        if changed & guarded:
+            raise SystemExit("FAIL %s: barnacles touched the body or its outline" % name)
+        if len(changed) < 20:
+            raise SystemExit("FAIL %s: only %d barnacle pixels, too faint to read as locked" % (name, len(changed)))
+        crusted.save(os.path.join(TILE_OUT, name + ".png"))
+        written.append(os.path.join(TILE_OUT, name + ".png"))
+        print("  ok   %-26s %3d barnacle px, none on the body or outline" % (name, len(changed)))
+
     bs = build_basin_sheet(pal)
     scaled(bs, 4).save(os.path.join(PREVIEW_OUT, "basin_4x.png"))
     scaled(greyscale(bs), 4).save(os.path.join(PREVIEW_OUT, "basin_4x_greyscale.png"))

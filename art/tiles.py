@@ -424,7 +424,7 @@ def _pores(body: set, bank: set, full: bool) -> set:
     return {p for p in out if p in body and depth.get(p, 0) >= 2}
 
 
-def render_sponge(mask: int, full: bool, pal: dict) -> Canvas:
+def render_sponge(mask: int, full: bool, pal: dict, locked: bool = False) -> Canvas:
     """One 32x32 sponge tile. `full` is the objective-complete state."""
     body = sponge_body(mask, full)
     bank = _bank_cells(body)
@@ -435,6 +435,10 @@ def render_sponge(mask: int, full: bool, pal: dict) -> Canvas:
             if (x, y) not in body and (x, y) not in bank and _is_speckle(x, y):
                 img[x, y] = pal["rock_speckle"]
 
+    if locked:
+        # Level 19's barnacled sponge used to draw as a plain locked pipe. Crust, not a pipe.
+        for p in _barnacles(body, bank):
+            img[p] = pal["outline"]
     for (x, y) in bank:
         img[x, y] = pal["outline"]
     for (x, y) in body:
@@ -488,7 +492,7 @@ def basin_water(state: str) -> set:
     return set()
 
 
-def render_basin(state: str, pal: dict) -> Canvas:
+def render_basin(state: str, pal: dict, locked: bool = False) -> Canvas:
     body = basin_body()
     bank = _bank_cells(body)
     water = basin_water(state)
@@ -497,6 +501,10 @@ def render_basin(state: str, pal: dict) -> Canvas:
         for x in range(SIZE):
             if (x, y) not in body and (x, y) not in bank and _is_speckle(x, y):
                 img[x, y] = pal["rock_speckle"]
+    if locked:
+        # The same crust as a locked channel, placed by distance from the bowl.
+        for p in _barnacles(body, bank):
+            img[p] = pal["outline"]
     for p in bank:
         img[p] = pal["outline"]
     for p in body:
