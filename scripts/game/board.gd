@@ -17,6 +17,8 @@ const LEVEL_DIR := "res://levels"
 ## How long a newly wet tile flashes. Flow itself is an instant BFS recompute; only the
 ## set difference is animated, so the eye follows the water without the sim faking it.
 const SPLASH_TIME := 0.28
+## A rescued critter bounces up and back over this long, once the water reaches it on screen.
+const POP_TIME := 0.3
 ## Seconds the water takes to cross one tile. Short on purpose: a cue about direction, not
 ## a cutscene -- the player may already be clicking again.
 const STEP_TIME := 0.045
@@ -49,6 +51,11 @@ var cleared := false
 ## Latched, never recomputed from the wet set: once a critter is rescued it stays rescued
 ## even if a later rotation dries its tile (Maren, design doc §2.3).
 var rescued: Dictionary = {}
+## Critter index -> the anim_time its rescue pop starts. Kept for the whole attempt, so it also
+## tells the draw when to swap the critter to its rescued look. Display only.
+var pop_at: Dictionary = {}
+## The level's authored solution, as TideFormat parsed it. The click test replays it.
+var solution: Array = []
 ## Counts down during the "tide comes back in" pause, then the level resets.
 var resetting := 0.0
 ## grid index -> seconds of splash left, for tiles that just became wet.
@@ -133,9 +140,9 @@ func _load_art() -> void:
 
 
 ## Draws a base-orientation sprite turned `turns` quarter-turns clockwise about its centre.
-func _draw_sprite(tex: Texture2D, rect: Rect2, turns: int = 0) -> void:
+func _draw_sprite(tex: Texture2D, rect: Rect2, turns: int = 0, scale: float = 1.0) -> void:
 	var size := Vector2(TILE_SIZE, TILE_SIZE)
-	draw_set_transform(rect.get_center(), turns * TAU * 0.25, Vector2.ONE)
+	draw_set_transform(rect.get_center(), turns * TAU * 0.25, Vector2.ONE * scale)
 	draw_texture_rect(tex, Rect2(-size * 0.5, size), false)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
@@ -178,10 +185,12 @@ func restart() -> void:
 		queue_redraw()
 		return
 	grid = result["grid"]
+	solution = result["solution"]
 	moves = 0
 	cleared = false
 	resetting = 0.0
 	rescued = {}
+	pop_at = {}
 	splashes = {}
 	arriving = {}
 	tide_left = grid.tide
@@ -211,6 +220,9 @@ func _recompute() -> void:
 			else:
 				splashes[idx] = SPLASH_TIME
 	for i in Flow.rescued(grid, wet):
+		if not rescued.has(i):
+			# Rescued by the rules this instant; rescued on screen when the water gets there.
+			pop_at[i] = anim_time + float(arriving.get(grid.index(grid.critters[i]["pos"]), 0.0))
 		rescued[i] = true
 	# Sponges are not latched the way critters are: rotating one off the route wrings it
 	# out and the level un-clears. A sponge you cannot route back to is a dead level, so
@@ -251,6 +263,9 @@ func _process(delta: float) -> void:
 		if splashes[idx] <= 0.0:
 			splashes.erase(idx)
 		dirty = true
+	for start in pop_at.values():
+		if anim_time < float(start) + POP_TIME:
+			dirty = true
 	if resetting > 0.0:
 		resetting -= delta
 		dirty = true
@@ -500,10 +515,15 @@ func _critter_frame(base: String, state: String) -> Variant:
 func _draw_critter(i: int) -> void:
 	var critter: Dictionary = grid.critters[i]
 	var rect := _tile_rect(critter["pos"])
-	var state := "rescued" if rescued.has(i) else "stranded"
+	var since := anim_time - float(pop_at.get(i, INF))
+	var state := "rescued" if rescued.has(i) and since >= 0.0 else "stranded"
+	# One bounce: up a third and back, over POP_TIME.
+	var pop := 1.0
+	if since >= 0.0 and since < POP_TIME:
+		pop += 0.35 * sin(PI * since / POP_TIME)
 	var sprite: Variant = _critter_frame("%s_%s" % [critter.get("type", "crab"), state], state)
 	if sprite != null:
-		_draw_sprite(sprite, rect)
+		_draw_sprite(sprite, rect, 0, pop)
 		return
 	draw_circle(rect.get_center(), 14.0, CRITTER_SAFE if rescued.has(i) else CRITTER)
 	var label: String = String(critter["type"]).substr(0, 1).to_upper()
