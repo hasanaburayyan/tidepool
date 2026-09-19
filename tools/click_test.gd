@@ -93,6 +93,21 @@ func _initialize() -> void:
 				failures += 1
 			else:
 				print("ok   %-16s barnacled tile shakes, costs nothing" % board.grid.title)
+		# The level's own solution, clicked for real from a fresh board, must rescue every
+		# critter and schedule each one's rescue pop.
+		board.restart()
+		for step in board.solution:
+			for _k in int(step["clicks"]):
+				await _click(board, step["pos"], MOUSE_BUTTON_LEFT if int(step["turns"]) > 0 else MOUSE_BUTTON_RIGHT)
+		var count: int = board.grid.critters.size()
+		if board.rescued.size() != count:
+			print("FAIL %-16s the solution clicked for real rescued %d/%d" % [board.grid.title, board.rescued.size(), count])
+			failures += 1
+		elif board.pop_at.size() != count:
+			print("FAIL %-16s %d/%d rescued critters got a rescue pop" % [board.grid.title, board.pop_at.size(), count])
+			failures += 1
+		else:
+			print("ok   %-16s solution clicked: %d/%d rescued, each pops" % [board.grid.title, count, count])
 
 	print("")
 	print("%d levels clicked, %d FAILED" % [levels.size(), failures])
