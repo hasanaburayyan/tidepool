@@ -49,6 +49,8 @@ func _initialize() -> void:
 		board.load_level(level)
 		for _i in 5:
 			await process_frame
+		# Read once, before any click: a click can clear a par-1 level and the next click moves on.
+		var title: String = board.grid.title
 
 		var target: Variant = _first_rotatable(board)
 		if target == null:
@@ -58,25 +60,37 @@ func _initialize() -> void:
 
 		var before: int = board.moves
 		var before_mask: int = board.grid.at(target).mask
+		var drain_before: float = board.drained_at
 		await _click(board, target, MOUSE_BUTTON_LEFT)
+		if board.moves != before and board.drained_at <= drain_before:
+			print("FAIL %-16s a turn spent tide but the notch did not drain" % title)
+			failures += 1
 
 		if board.moves == before:
-			print("FAIL %-16s click at %s did not register" % [board.grid.title, target])
+			print("FAIL %-16s click at %s did not register" % [title, target])
 			failures += 1
 		elif board.grid.at(target).mask == before_mask:
-			print("FAIL %-16s click counted but the tile did not turn" % board.grid.title)
+			print("FAIL %-16s click counted but the tile did not turn" % title)
 			failures += 1
 		else:
-			# And right-click has to turn it back the other way.
+			# And right-click has to turn it back the other way. A par-1 level (level 1) clears on
+			# that left-click, and a click on a cleared board moves on to the next pool, so start
+			# the right-click from a fresh copy of this level instead.
+			if board.cleared:
+				board.load_level(level)
+				await process_frame
 			var after_left: int = board.grid.at(target).mask
 			await _click(board, target, MOUSE_BUTTON_RIGHT)
 			if board.grid.at(target).mask == after_left:
-				print("FAIL %-16s right-click did not turn the tile back" % board.grid.title)
+				print("FAIL %-16s right-click did not turn the tile back" % title)
 				failures += 1
 			else:
-				print("ok   %-16s left-click rotates, right-click rotates back" % board.grid.title)
+				print("ok   %-16s left-click rotates, right-click rotates back" % title)
 
 		# A barnacled tile must answer a click with a shake, and must not spend tide or turn.
+		# Fresh board again: the right-click above can clear a par-1 level too.
+		board.load_level(level)
+		await process_frame
 		var crust: Variant = _first_locked(board)
 		if crust != null:
 			var idx: int = board.grid.index(crust)
@@ -85,14 +99,14 @@ func _initialize() -> void:
 			var mask_before: int = board.grid.at(crust).mask
 			var shook := await _press_and_check(board, crust, idx)
 			if not shook:
-				print("FAIL %-16s click on barnacles at %s did not shake" % [board.grid.title, crust])
+				print("FAIL %-16s click on barnacles at %s did not shake" % [title, crust])
 				failures += 1
 			elif board.tide_left != tide_before or board.moves != moves_before \
 					or board.grid.at(crust).mask != mask_before:
-				print("FAIL %-16s click on barnacles spent tide or turned the tile" % board.grid.title)
+				print("FAIL %-16s click on barnacles spent tide or turned the tile" % title)
 				failures += 1
 			else:
-				print("ok   %-16s barnacled tile shakes, costs nothing" % board.grid.title)
+				print("ok   %-16s barnacled tile shakes, costs nothing" % title)
 	# Every level's own solution, clicked for real from a fresh board, must clear it, rescue every
 	# critter and give each one its rescue pop. verify_levels proves a solution exists in the
 	# sim; this proves a player can click it in the game. The level is reloaded by index and

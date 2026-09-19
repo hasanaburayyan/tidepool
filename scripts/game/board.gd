@@ -21,6 +21,8 @@ const SPLASH_TIME := 0.28
 const POP_TIME := 0.3
 ## On a clear, a wave washes across the board, away from the tide's mouth, over this long.
 const WIPE_TIME := 0.7
+## The tide notch a click spends drains away over this long, so the cost is seen landing.
+const DRAIN_TIME := 0.35
 ## A barnacled tile the player tries to turn wobbles for this long and says no. Free: the tide
 ## is only ever spent on a turn.
 const SHAKE_TIME := 0.25
@@ -62,6 +64,8 @@ var pop_at: Dictionary = {}
 ## anim_time the clear wave starts: when the last critter is reached on screen. Display, plus
 ## the gate that keeps a fast double-click from skipping the wave into the next pool.
 var cleared_at := -INF
+## anim_time of the last tide spent; the notch at index tide_left drains from then. Display only.
+var drained_at := -INF
 ## The level's authored solution, as TideFormat parsed it. The click test replays it.
 var solution: Array = []
 ## Counts down during the "tide comes back in" pause, then the level resets.
@@ -205,6 +209,7 @@ func restart() -> void:
 	splashes = {}
 	arriving = {}
 	tide_left = grid.tide
+	drained_at = -INF
 	wet = {}
 	_recompute()
 
@@ -279,6 +284,8 @@ func _process(delta: float) -> void:
 			splashes.erase(idx)
 		dirty = true
 	if cleared and anim_time < cleared_at + WIPE_TIME:
+		dirty = true
+	if anim_time < drained_at + DRAIN_TIME:
 		dirty = true
 	for start in pop_at.values():
 		if anim_time < float(start) + POP_TIME:
@@ -362,6 +369,7 @@ func _try_rotate(pos: Vector2i, turns: int) -> void:
 		return
 	moves += 1
 	tide_left -= 1
+	drained_at = anim_time
 	_recompute()
 	if not cleared and tide_left <= 0:
 		# Pillar one: the tide running out is never a fail screen. It comes back in.
@@ -603,6 +611,11 @@ func _draw_hud() -> void:
 		var notch: float = bar.size.x / float(grid.tide)
 		for i in tide_left:
 			draw_rect(Rect2(bar.position + Vector2(i * notch + 1.0, 0), Vector2(notch - 2.0, 20)), WATER)
+		# The notch just spent sinks out of the bar rather than blinking off.
+		var left := 1.0 - (anim_time - drained_at) / DRAIN_TIME
+		if left > 0.0 and tide_left < grid.tide:
+			var h := 20.0 * left
+			draw_rect(Rect2(bar.position + Vector2(tide_left * notch + 1.0, 20.0 - h), Vector2(notch - 2.0, h)), WATER)
 	draw_string(_font, Vector2(MARGIN.x + bar_width + 12, 70), "tide %d" % tide_left, 0, -1, 16, TEXT)
 
 	reset_button = Rect2(MARGIN.x, 80, 110, 22)
