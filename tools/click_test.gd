@@ -141,6 +141,26 @@ func _initialize() -> void:
 		else:
 			print("ok   %-19s solution clicked (%d clicks): cleared, %d/%d rescued, each pops" % [
 					title, clicked, count, count])
+		# The clear wave gates the click that moves you on: a click straight after the clear must
+		# not skip the wave, and a click once it has passed must take you to the next pool.
+		if board.cleared and not board.solution.is_empty():
+			var here: int = board.level_index
+			var spot: Vector2i = board.solution[0]["pos"]
+			await _click(board, spot, MOUSE_BUTTON_LEFT)
+			if board.level_index != here:
+				print("FAIL %-19s a click during the clear wave skipped to the next pool" % title)
+				failures += 1
+			else:
+				var wipe: float = board.get_script().get_script_constant_map()["WIPE_TIME"]
+				# Real time, not frames: an uncapped frame rate can run hundreds of frames in 0.1s.
+				var waited := 0
+				while board.anim_time < board.cleared_at + wipe and waited < 100:
+					await create_timer(0.05).timeout
+					waited += 1
+				await _click(board, spot, MOUSE_BUTTON_LEFT)
+				if board.level_index != posmod(here + 1, board.levels.size()):
+					print("FAIL %-19s a click after the clear wave did not move on" % title)
+					failures += 1
 
 	print("")
 	print("%d levels clicked, %d solutions replayed, %d FAILED" % [levels.size(), replay.size(), failures])
