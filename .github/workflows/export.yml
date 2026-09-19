@@ -64,9 +64,11 @@ jobs:
           test -s build/windows/Tidepool.exe
       - name: Package
         run: |
-          cd build && zip -r tidepool-linux-${GITHUB_REF_NAME:-manual}.zip linux
-          cp macos/tidepool.zip tidepool-macos-${GITHUB_REF_NAME:-manual}.zip
-          zip -r tidepool-windows-${GITHUB_REF_NAME:-manual}.zip windows
+          # A branch like build/windows would otherwise turn into a directory in the file name.
+          REF=$(echo "${GITHUB_REF_NAME:-manual}" | tr '/' '-')
+          cd build && zip -r tidepool-linux-$REF.zip linux
+          cp macos/tidepool.zip tidepool-macos-$REF.zip
+          zip -r tidepool-windows-$REF.zip windows
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
