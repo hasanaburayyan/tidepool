@@ -46,10 +46,17 @@ jobs:
         run: |
           mkdir -p build/macos
           godot --headless --path . --export-release "macOS" build/macos/tidepool.zip
+      # Same job as the others on purpose: the click gate above covers every platform we ship.
+      - name: Export Windows
+        run: |
+          mkdir -p build/windows
+          godot --headless --path . --export-release "Windows Desktop" build/windows/Tidepool.exe
+          test -s build/windows/Tidepool.exe
       - name: Package
         run: |
           cd build && zip -r tidepool-linux-${GITHUB_REF_NAME:-manual}.zip linux
           cp macos/tidepool.zip tidepool-macos-${GITHUB_REF_NAME:-manual}.zip
+          zip -r tidepool-windows-${GITHUB_REF_NAME:-manual}.zip windows
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
@@ -57,9 +64,18 @@ jobs:
           files: |
             build/tidepool-linux-*.zip
             build/tidepool-macos-*.zip
+            build/tidepool-windows-*.zip
       - name: Upload artifacts (manual runs)
         if: "!startsWith(github.ref, 'refs/tags/v')"
         uses: actions/upload-artifact@v4
         with:
           name: tidepool-builds
           path: build/*.zip
+      # Its own artifact, uploaded as the bare folder: GitHub zips an artifact on download, so a
+      # Windows player gets one zip holding Tidepool.exe instead of a zip inside a zip.
+      - name: Upload Windows artifact (manual runs)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: tidepool-windows
+          path: build/windows/
