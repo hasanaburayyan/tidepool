@@ -30,8 +30,18 @@ jobs:
       # A build that cannot be clicked is not a build. This needs a real window, so it
       # cannot join the headless test job -- but nothing should ever be exported from
       # code that fails it. TIDE-19 shipped an unplayable build for exactly this gap.
+      # The image has no display server; click.yml installs the same thing for PRs.
+      - name: Virtual display and software GL
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri \
+            libxcursor1 libxinerama1 libxrandr2 libxi6 libxkbcommon0 > /dev/null
       - name: Clicks reach the board
-        run: xvfb-run -a godot --path . --script res://tools/click_test.gd
+        timeout-minutes: 3
+        run: >
+          xvfb-run -a -s "-screen 0 1280x800x24"
+          godot --path . --rendering-driver opengl3 --audio-driver Dummy
+          --script res://tools/click_test.gd
 
       - name: Verify every level (release strictness)
         env:
