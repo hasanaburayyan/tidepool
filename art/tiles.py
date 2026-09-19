@@ -442,3 +442,73 @@ def render_sponge(mask: int, full: bool, pal: dict) -> Canvas:
     for (x, y) in _pores(body, bank, full):
         img[x, y] = pal["outline"]
     return img
+
+
+## ---------------------------------------------------------------------------
+## Basins (levels 25-28): a four-way pool that never rotates. It fills from any side but
+## only passes water on once it is fed from two or more.
+##
+## The trap is the one the channel floor fell into: Tidewater and Wet Sand are 19 luma apart,
+## so "where the water is" cannot carry the state on its own. The answer is a LIP - a Deep
+## Umber ring inside the bowl, the darkest thing we own:
+##   dry  - bowl, lip, four short mouths, no water. Round, so never mistaken for a cross.
+##   wait - water held BELOW the lip; the ring stays visible and every mouth stays dry. It
+##          reads as a bowl holding water and passing none on - calm, not broken.
+##   over - water rises over the lip, so the ring goes under, and pours out of all four
+##          mouths to the tile edges.
+## "Ring present" against "ring gone" is a change of shape at luma 48, so it survives
+## greyscale; the water's texture is the confirmation, never the signal.
+## ---------------------------------------------------------------------------
+
+import math as _math
+
+BASIN_R = 12.5      # bowl radius
+BASIN_LIP = 8.5     # the lip ring
+
+
+def _dist(x, y):
+    c = (SIZE - 1) / 2.0
+    return _math.hypot(x - c, y - c)
+
+
+def basin_body() -> set:
+    bowl = {(x, y) for y in range(SIZE) for x in range(SIZE) if _dist(x, y) <= BASIN_R}
+    return bowl | channel_cells(0b1111)
+
+
+def basin_lip() -> set:
+    return {(x, y) for y in range(SIZE) for x in range(SIZE) if BASIN_LIP <= _dist(x, y) < BASIN_LIP + 1}
+
+
+def basin_water(state: str) -> set:
+    if state == "over":
+        return basin_body()
+    if state == "wait":
+        return {(x, y) for y in range(SIZE) for x in range(SIZE) if _dist(x, y) < BASIN_LIP}
+    return set()
+
+
+def render_basin(state: str, pal: dict) -> Canvas:
+    body = basin_body()
+    bank = _bank_cells(body)
+    water = basin_water(state)
+    img = Canvas(SIZE, SIZE, pal["rock_body"])
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if (x, y) not in body and (x, y) not in bank and _is_speckle(x, y):
+                img[x, y] = pal["rock_speckle"]
+    for p in bank:
+        img[p] = pal["outline"]
+    for p in body:
+        img[p] = pal["channel_dry"]
+    for (x, y) in water:
+        img[x, y] = pal["channel_wet"]
+        # Same water as every channel: gloss where it meets its edge upper-left, dashed ripples.
+        if (x, y - 1) not in water or (x - 1, y) not in water:
+            img[x, y] = pal["channel_gloss"]
+        elif (x + y) % 5 == 0 and (x - 2, y) in water and (x, y - 2) in water:
+            img[x, y] = pal["channel_gloss"]
+    if state != "over":
+        for p in basin_lip():
+            img[p] = pal["outline"]
+    return img
