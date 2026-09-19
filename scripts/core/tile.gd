@@ -54,6 +54,16 @@ func connects(dir: int) -> bool:
 	return (mask & (1 << dir)) != 0
 
 
+## The open sides in N-E-S-W order, lower case: "nesw", "es", "" for rock. This is the key every
+## sprite name and every preview is built from, so it lives here, once, rather than in each reader.
+func sides_key() -> String:
+	var sides := ""
+	for dir in DIRS:
+		if connects(dir):
+			sides += DIR_NAMES[dir]
+	return sides.to_lower()
+
+
 func rotate_cw(times: int = 1) -> void:
 	for _i in posmod(times, 4):
 		mask = ((mask << 1) | (mask >> 3)) & 0b1111

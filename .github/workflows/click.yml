@@ -1,0 +1,37 @@
+name: click
+
+# Clicks the game the way a player does (tools/click_test.gd) on any PR that can change what a
+# click does. test.yml proves the game loads; this proves it plays. TIDE-19 shipped a build that
+# loaded fine and ignored every mouse click, and only a real window with real input events
+# catches that -- so this runs under a virtual display, not --headless.
+on:
+  pull_request:
+    paths:
+      - "scenes/**"
+      - "scripts/game/**"
+      - "project.godot"
+      - "tools/click_test.gd"
+      - ".github/workflows/click.yml"
+
+jobs:
+  click:
+    name: click
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.6.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Virtual display and software GL
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri \
+            libxcursor1 libxinerama1 libxrandr2 libxi6 libxkbcommon0 > /dev/null
+      - name: Import project (first run generates .godot/)
+        run: godot --headless --path . --import || true
+      # A board.gd that does not parse makes click_test wait forever rather than fail, hence the timeout.
+      - name: Click levels 1, 5, 13 and 19
+        timeout-minutes: 3
+        run: >
+          xvfb-run -a -s "-screen 0 1280x800x24"
+          godot --path . --rendering-driver opengl3 --audio-driver Dummy
+          --script res://tools/click_test.gd

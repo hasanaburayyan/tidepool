@@ -5,7 +5,10 @@ extends SceneTree
 ## ON A FRESH CHECKOUT, IMPORT FIRST:
 ##   godot --headless --path . --import
 ##
-##   godot --headless --path . --script res://tools/dump_rules.gd [-- res://levels] > rules.json
+##   godot --headless --path . --script res://tools/dump_rules.gd [-- res://levels [res://build/rules.json]]
+##
+## Writes the FILE (default res://build/rules.json); stdout only gets the Godot banner and a one-line
+## summary, so do not redirect it into a .json.
 ##
 ## Two duplications this exists to delete:
 ##   * `art/build.py`'s `flood` reimplements the connection rule in Python to colour the
@@ -64,14 +67,8 @@ func _dump_level(parsed: Dictionary) -> Dictionary:
 	for step in parsed["solution"]:
 		solved.rotate_at(step["pos"], step["turns"])
 
-	var wet_start: Array[int] = []
-	for idx in Flow.compute(grid):
-		wet_start.append(idx)
-	var wet_solved: Array[int] = []
-	for idx in Flow.compute(solved):
-		wet_solved.append(idx)
-	wet_start.sort()
-	wet_solved.sort()
+	var wet_at_start := Flow.compute(grid)
+	var wet_solved := Flow.compute(solved)
 
 	return {
 		"id": grid.id,
@@ -81,9 +78,42 @@ func _dump_level(parsed: Dictionary) -> Dictionary:
 		"par": grid.par,
 		"tide": grid.tide,
 		# Indices are row-major: index = y * width + x, the same as Grid.index().
-		"wet_at_start": wet_start,
-		"wet_when_solved": wet_solved,
+		"wet_at_start": _sorted_keys(wet_at_start),
+		"wet_when_solved": _sorted_keys(wet_solved),
+		# One-ways turning water away (Flow.refusing): a dry arrow with water at its exit mouth.
+		"refusing_at_start": _sorted_keys(Flow.refusing(grid, wet_at_start)),
+		"refusing_when_solved": _sorted_keys(Flow.refusing(solved, wet_solved)),
+		# Every cell, row-major, so a preview can be drawn without parsing .tide a second time.
+		"tiles_at_start": _dump_tiles(grid),
+		"tiles_when_solved": _dump_tiles(solved),
 	}
+
+
+## Per cell: kind ("empty", "channel", "oneway", "sponge", "crab"), sides (the same key the sprite
+## names use, from Tile.sides_key), locked, and for one-ways `out`, the side the water leaves by.
+func _dump_tiles(grid) -> Array:
+	var out: Array = []
+	for tile in grid.tiles:
+		if tile == null:
+			out.append({"kind": "empty", "sides": "", "locked": true})
+			continue
+		var cell := {
+			"kind": String(Tile.Kind.keys()[tile.kind]).to_lower(),
+			"sides": tile.sides_key(),
+			"locked": tile.locked,
+		}
+		if tile.kind == Tile.Kind.ONEWAY:
+			cell["out"] = String(Tile.DIR_NAMES[tile.out_dir]).to_lower()
+		out.append(cell)
+	return out
+
+
+func _sorted_keys(keyed: Dictionary) -> Array[int]:
+	var out: Array[int] = []
+	for idx in keyed:
+		out.append(idx)
+	out.sort()
+	return out
 
 
 func _tide_files(dir_path: String) -> Array[String]:
