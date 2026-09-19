@@ -1,0 +1,18 @@
+# BASIN DEMONSTRATION - trivially 3-star. The basin at r2c3 is already fed from the
+# west; the loop over the top is laid except one straight. Turn it, the second feed
+# arrives, the basin overflows east. Introduces the symbol doing nothing surprising.
+id: 25
+name: Still Pool
+size: 5x4
+par: 1
+tide: 7
+source: r2c0
+grid:
+  .. l1 i1 l2 ..
+  .. i0 .. I1 ..
+  e1 t3 i1 b0 e3
+  .. .. .. .. ..
+critters:
+  r2c4 starfish
+solution:
+  r1c3 cw1
