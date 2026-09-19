@@ -118,6 +118,9 @@ func _initialize() -> void:
 			print("FAIL %-19s its solution, clicked for real, rescued %d/%d and did not clear" % [
 					title, board.rescued.size(), count])
 			failures += 1
+		elif board.cleared_at < 0.0:
+			print("FAIL %-19s cleared without starting the clear wave" % title)
+			failures += 1
 		elif board.pop_at.size() != count:
 			print("FAIL %-19s %d/%d rescued critters got a rescue pop" % [title, board.pop_at.size(), count])
 			failures += 1
