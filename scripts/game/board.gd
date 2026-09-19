@@ -19,6 +19,9 @@ const LEVEL_DIR := "res://levels"
 const SPLASH_TIME := 0.28
 ## A rescued critter bounces up and back over this long, once the water reaches it on screen.
 const POP_TIME := 0.3
+## A barnacled tile the player tries to turn wobbles for this long and says no. Free: the tide
+## is only ever spent on a turn.
+const SHAKE_TIME := 0.25
 ## Seconds the water takes to cross one tile. Short on purpose: a cue about direction, not
 ## a cutscene -- the player may already be clicking again.
 const STEP_TIME := 0.045
@@ -63,6 +66,8 @@ var splashes: Dictionary = {}
 ## grid index -> seconds until the water reaches it. Display only: to the rules the tile is
 ## already in `wet`; it just has not been drawn filled yet.
 var arriving: Dictionary = {}
+## Barnacled tiles still shaking off a click, keyed by grid index -> seconds left. Display only.
+var shakes: Dictionary = {}
 ## Seconds since the board woke, for looping critter frames. Display only.
 var anim_time := 0.0
 ## Set by _load_art when any critter ships numbered frames; only then does the board need to
@@ -266,6 +271,11 @@ func _process(delta: float) -> void:
 	for start in pop_at.values():
 		if anim_time < float(start) + POP_TIME:
 			dirty = true
+	for idx in shakes.keys():
+		shakes[idx] -= delta
+		if shakes[idx] <= 0.0:
+			shakes.erase(idx)
+		dirty = true
 	if resetting > 0.0:
 		resetting -= delta
 		dirty = true
@@ -325,7 +335,13 @@ func _unhandled_input(event: InputEvent) -> void:
 ## refuse, and a refused turn never costs the player tide.
 func _try_rotate(pos: Vector2i, turns: int) -> void:
 	var tile := grid.at(pos)
-	if tile == null or not tile.can_rotate() or tile.rotation_period() <= 1:
+	if tile == null:
+		return
+	# A click on barnacles is answered, not ignored: silence reads as a dropped click.
+	if tile.locked and tile.kind != Tile.Kind.EMPTY:
+		shakes[grid.index(pos)] = SHAKE_TIME
+		return
+	if not tile.can_rotate() or tile.rotation_period() <= 1:
 		return
 	if not grid.rotate_at(pos, turns):
 		return
@@ -384,6 +400,10 @@ func _draw_tile(pos: Vector2i) -> void:
 		draw_rect(rect, HOVER)
 	if tile.kind == Tile.Kind.EMPTY:
 		return
+	# The sand stays put and the rock on it wobbles: three swings, dying away.
+	if shakes.has(idx):
+		var left: float = shakes[idx] / SHAKE_TIME
+		rect.position.x += sin((1.0 - left) * TAU * 3.0) * 5.0 * left
 
 	# Art in this tile's exact orientation wins; a base-orientation image turned by the
 	# engine is the fallback; the drawn placeholder is the fallback to that. Every level

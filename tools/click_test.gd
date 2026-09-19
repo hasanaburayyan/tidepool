@@ -76,6 +76,23 @@ func _initialize() -> void:
 			else:
 				print("ok   %-16s left-click rotates, right-click rotates back" % board.grid.title)
 
+		# A barnacled tile must answer a click with a shake, and must not spend tide or turn.
+		var crust: Variant = _first_locked(board)
+		if crust != null:
+			var idx: int = board.grid.index(crust)
+			var tide_before: int = board.tide_left
+			var moves_before: int = board.moves
+			var mask_before: int = board.grid.at(crust).mask
+			var shook := await _press_and_check(board, crust, idx)
+			if not shook:
+				print("FAIL %-16s click on barnacles at %s did not shake" % [board.grid.title, crust])
+				failures += 1
+			elif board.tide_left != tide_before or board.moves != moves_before \
+					or board.grid.at(crust).mask != mask_before:
+				print("FAIL %-16s click on barnacles spent tide or turned the tile" % board.grid.title)
+				failures += 1
+			else:
+				print("ok   %-16s barnacled tile shakes, costs nothing" % board.grid.title)
 		# The level's own solution, clicked for real from a fresh board, must rescue every
 		# critter and schedule each one's rescue pop.
 		board.restart()
@@ -105,6 +122,34 @@ func _first_rotatable(board) -> Variant:
 			if board.grid.at(pos).can_rotate() and board.grid.at(pos).rotation_period() > 1:
 				return pos
 	return null
+
+
+## The first barnacled tile that is not bare sand (mask 0), or null on a level without any.
+func _first_locked(board) -> Variant:
+	for y in board.grid.height:
+		for x in board.grid.width:
+			var pos := Vector2i(x, y)
+			if board.grid.at(pos).locked and board.grid.at(pos).mask != 0:
+				return pos
+	return null
+
+
+## Presses on a tile and reports whether it started shaking. Checked one frame after the press,
+## not after the whole click: the shake is a quarter second and a slow CI frame could outlive it.
+func _press_and_check(board, tile_pos: Vector2i, idx: int) -> bool:
+	var rect: Rect2 = board._tile_rect(tile_pos)
+	var shook := false
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = rect.get_center()
+		event.global_position = event.position
+		Input.parse_input_event(event)
+		await process_frame
+		if pressed:
+			shook = board.shakes.has(idx)
+	return shook
 
 
 ## Pushes a real mouse event at the centre of a tile: through the viewport, past any
