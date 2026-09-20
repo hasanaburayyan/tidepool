@@ -16,9 +16,18 @@ const MAP_SCENE := preload("res://scenes/map.tscn")
 const LEVEL_SCENE := preload("res://scenes/main.tscn")
 const SaveDataScript := preload("res://scripts/systems/save_data.gd")
 
+## Emitted just before the game closes. Exists so the last link of the Escape chain is
+## testable: tools/shell_test.gd watches this instead of actually being terminated.
+signal quit_requested()
+
 ## Injectable so tools/shell_test.gd can drive the whole shell against a temp save file
 ## without touching the player's real one.
 var save: RefCounted
+
+## Cleared by tools/shell_test.gd only. Escape on the title has to really end the game, and
+## an assertion that ends the test process cannot report what it found -- so the suite turns
+## the actual quit off and asserts on `quit_requested` instead. Always true in the game.
+var quit_on_escape := true
 
 var _title: Node = null
 var _map: Node = null
@@ -120,5 +129,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _map != null and _map.visible:
 		show_title()
-	else:
+		return
+	quit_requested.emit()
+	if quit_on_escape:
 		get_tree().quit()

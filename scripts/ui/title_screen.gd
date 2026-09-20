@@ -55,7 +55,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		began = true
 	elif event is InputEventKey and event.pressed and not event.echo:
-		began = true
+		# Escape means leave, not begin. "Any key starts" swallowed it here, so the shell's
+		# Escape chain -- pool, map, title, quit -- silently lost its last link and the only
+		# way out of the game was the window close button. (Found by Nerite, TIDE-49.)
+		began = event.keycode != KEY_ESCAPE
 	if began:
 		play_requested.emit()
 		# Consumed, or the same click carries through to the map underneath and opens
