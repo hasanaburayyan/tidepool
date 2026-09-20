@@ -17,6 +17,7 @@ const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const MAP_SCENE := preload("res://scenes/map.tscn")
 const LEVEL_SCENE := preload("res://scenes/main.tscn")
 const SaveDataScript := preload("res://scripts/systems/save_data.gd")
+const SfxScript := preload("res://scripts/systems/sfx.gd")
 
 ## Emitted just before the game closes. Exists so the last link of the Escape chain is
 ## testable: tools/shell_test.gd watches this instead of actually being terminated.
@@ -43,6 +44,10 @@ var _settings_over: Node = null
 ## The pool just cleared, held until the map is back on screen so the celebration plays
 ## there rather than being missed behind the board's own clear wave.
 var _last_cleared := 0
+
+## The ambience lives HERE, not on the board or the map: it has to survive every scene swap,
+## and anything owned by a screen dies with that screen. Started once in _ready.
+var _sfx: Node = null
 var _last_ripple := true
 var _last_shells := true
 
@@ -52,6 +57,9 @@ func _ready() -> void:
 		save = SaveDataScript.new()
 		save.load_game()
 	_apply_settings()
+	_sfx = SfxScript.new()
+	add_child(_sfx)
+	_sfx.start_ambience(["amb_waves", "amb_gulls"])
 	show_title()
 
 
@@ -97,6 +105,7 @@ func show_settings() -> void:
 	_settings = SETTINGS_SCENE.instantiate()
 	_settings.save = save
 	_settings.closed.connect(_close_settings)
+	_settings.clicked.connect(func(): _sfx.play("menu_click"))
 	add_child(_settings)
 	_set_active(_settings, true)
 

@@ -17,6 +17,7 @@ signal level_chosen(level_no: int)
 signal settings_requested()
 
 const SaveDataScript := preload("res://scripts/systems/save_data.gd")
+const SfxScript := preload("res://scripts/systems/sfx.gd")
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const SETTINGS_RECT := SettingsPanel.SETTINGS_RECT
 
@@ -47,6 +48,10 @@ const RIPPLE_RADIUS := 46.0
 
 var save: RefCounted
 
+## The same thunk the board plays for a barnacled tile. Tern's call: a locked POOL and a
+## locked TILE are the same refusal in the same vocabulary, so they say the same thing.
+var _sfx: Node = null
+
 var _art: Dictionary = {}
 var _hover := 0
 var _shake_level := 0
@@ -63,8 +68,15 @@ var _celebrate_t := -1.0
 var _celebrate_ripple := true
 var _celebrate_shells := true
 
+## How many shell plinks have sounded this celebration, and whether the wave has. Counters
+## rather than timers so a dropped frame cannot skip a plink or double one.
+var _plinked := 0
+var _waved := false
+
 
 func _ready() -> void:
+	_sfx = SfxScript.new()
+	add_child(_sfx)
 	_load_art()
 	if save == null:
 		save = SaveDataScript.new()
@@ -132,6 +144,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if level == 0:
 		return
 	if state_of(level) == "locked":
+		# Only while the shake is not already running (Tern): re-clicking a locked pool
+		# mid-shake must not stack a second thunk on top of the first.
+		if _shake_left <= 0.0 and _sfx != null:
+			_sfx.play("locked_thunk")
 		_shake_level = level
 		_shake_left = SHAKE_TIME
 		queue_redraw()
@@ -149,6 +165,8 @@ func celebrate(level_no: int, ripple: bool = true, shells: bool = true) -> void:
 	# Nothing to announce cancels instead of starting: this is also what clears a stale
 	# celebration, see cancel_celebration.
 	_celebrate_t = 0.0 if (ripple or shells) else -1.0
+	_plinked = 0
+	_waved = false
 	queue_redraw()
 
 
@@ -176,6 +194,7 @@ func _celebrating() -> bool:
 func _process(delta: float) -> void:
 	if _celebrating():
 		_celebrate_t += delta
+		_sound_the_celebration()
 		if _celebrate_t > _shells_done() + RIPPLE_TIME:
 			_celebrate_t = -1.0
 			_celebrate_level = 0
@@ -185,6 +204,20 @@ func _process(delta: float) -> void:
 		if _shake_left <= 0.0:
 			_shake_level = 0
 		queue_redraw()
+
+
+## One plink per shell as it lands, 0.2s apart, and the wave once the last one has (Tern:
+## at (shells - 1) * 0.2s, which is the same instant as the final plink).
+func _sound_the_celebration() -> void:
+	if _sfx == null or not _celebrate_shells:
+		return
+	var earned := int(save.stars_for(_celebrate_level))
+	while _plinked < earned and _celebrate_t >= float(_plinked) * SHELL_STEP:
+		_sfx.play("shell_plink")
+		_plinked += 1
+	if not _waved and earned > 0 and _celebrate_t >= float(earned - 1) * SHELL_STEP:
+		_waved = true
+		_sfx.play("clear_wave")
 
 
 # --- drawing --------------------------------------------------------------------------
