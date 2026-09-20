@@ -31,11 +31,12 @@ signal settings_requested()
 ## decide what happens next. Nothing else about the board changes.
 var shell_mode := false
 
+const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
+const SfxScript := preload("res://scripts/systems/sfx.gd")
+
 ## 64, not 72, so Cove's 32 px sprites land at exactly 2x. Pixel art at a fractional
 ## scale under a Nearest filter drops and doubles rows of pixels; 2x is the whole point.
 ## The largest board we ship is 7x6, so 7*64 + margins still fits the 960x640 viewport.
-const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
-
 const TILE_SIZE := 64
 const MARGIN := Vector2(40, 108)
 const LEVEL_DIR := "res://levels"
@@ -186,7 +187,20 @@ func _draw_sprite(tex: Texture2D, rect: Rect2, turns: int = 0, scale: float = 1.
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
+## Sound effects. Added here rather than as an autoload so the bare main.tscn the tools load
+## is still self-contained -- it makes noise on its own, and every sound goes through the
+## master bus that settings drives.
+var _sfx: Node = null
+
+## True while a level is being (re)built, so the recompute that sets up the opening board
+## cannot fire a rescue chime for a critter the author placed already-wet. A chime on level
+## entry would be announcing something the player did not do.
+var _loading := false
+
+
 func _ready() -> void:
+	_sfx = SfxScript.new()
+	add_child(_sfx)
 	_load_art()
 	levels = _find_levels()
 	if levels.is_empty():
@@ -236,14 +250,61 @@ func restart() -> void:
 	tide_left = grid.tide
 	drained_at = -INF
 	wet = {}
+	_loading = true
 	_recompute()
+	_loading = false
+
+
+## The three state sounds Tern specced, all on the RISING EDGE only.
+##
+## _recompute runs on every rotation, so a sound keyed on the state rather than on the
+## change would retrigger every click for as long as the state held -- an arrow already
+## refusing would shut again and again. Each of these fires when something ENTERS its
+## state, never while it stays there, and never on level entry (`_loading`).
+##
+## At most one of each kind per rotation: if a rotation shuts two arrows or fills two
+## basins, that is one event to the ear, not two on top of each other.
+func _sound_state_changes(before: Dictionary, was_refusing: Dictionary,
+		was_overflowing: Dictionary) -> void:
+	if _loading or _sfx == null:
+		return
+
+	# gate_shut: a one-way newly turning water away. "Gate" was Tern's shorthand from
+	# Maren's doc for the sluice bar shutting -- it is the arrow refusing, nothing else.
+	for idx in refusing:
+		if not was_refusing.has(idx):
+			_sfx.play("gate_shut")
+			break
+
+	# basin_overflow: a basin newly passing water on.
+	var overflowed := false
+	for idx in overflowing:
+		if not was_overflowing.has(idx):
+			overflowed = true
+			break
+	if overflowed:
+		_sfx.play("basin_overflow")
+
+	# basin_held: a basin newly wet that is NOT passing water on -- part-full, holding it.
+	# A basin that fills and overflows in the same rotation is an overflow, not a hold, so
+	# `overflowing` is checked against the new state rather than the old.
+	for idx in wet:
+		if before.has(idx) or overflowing.has(idx):
+			continue
+		var tile := grid.at(grid.pos_of(int(idx)))
+		if tile != null and tile.kind == Tile.Kind.BASIN:
+			_sfx.play("basin_held")
+			break
 
 
 func _recompute() -> void:
 	var before := wet
+	var was_refusing := refusing
+	var was_overflowing := overflowing
 	wet = Flow.compute(grid)
 	refusing = Flow.refusing(grid, wet)
 	overflowing = Flow.overflowing(grid)
+	_sound_state_changes(before, was_refusing, was_overflowing)
 	# Animate only the difference, and in route order: each newly-wet tile waits its distance
 	# from the nearest newly-wet tile, so the eye follows the path the water actually took.
 	var depth := Flow.distances(grid)
@@ -264,6 +325,10 @@ func _recompute() -> void:
 		if not rescued.has(i):
 			# Rescued by the rules this instant; rescued on screen when the water gets there.
 			pop_at[i] = anim_time + float(arriving.get(grid.index(grid.critters[i]["pos"]), 0.0))
+			# Tern: the frame the tile becomes WET, not when the tween lands. `rescued`
+			# latches, so this is once per rescue and never again.
+			if not _loading and _sfx != null:
+				_sfx.play("rescue_chime")
 		rescued[i] = true
 	# Sponges are not latched the way critters are: rotating one off the route wrings it
 	# out and the level un-clears. A sponge you cannot route back to is a dead level, so
@@ -429,11 +494,17 @@ func _try_rotate(pos: Vector2i, turns: int) -> void:
 	# A click on barnacles is answered, not ignored: silence reads as a dropped click.
 	if tile.locked and tile.kind != Tile.Kind.EMPTY:
 		shakes[grid.index(pos)] = SHAKE_TIME
+		if _sfx != null:
+			_sfx.play("locked_thunk")
 		return
 	if not tile.can_rotate() or tile.rotation_period() <= 1:
 		return
 	if not grid.rotate_at(pos, turns):
 		return
+	# Only reached when the rotation actually happened: barnacles, bare sand and the cross
+	# have all returned above, so a no-op never makes a sound.
+	if _sfx != null:
+		_sfx.play_variant("rotate_click", 3)
 	moves += 1
 	tide_left -= 1
 	drained_at = anim_time

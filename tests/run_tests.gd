@@ -5,6 +5,7 @@ extends SceneTree
 const TestCore := preload("res://tests/test_core.gd")
 const TestSave := preload("res://tests/test_save.gd")
 const TestMap := preload("res://tests/test_map.gd")
+const TestSfx := preload("res://tests/test_sfx.gd")
 
 
 func _initialize() -> void:
@@ -13,4 +14,5 @@ func _initialize() -> void:
 	var failures: int = TestCore.new().run()
 	failures += TestSave.new().run()
 	failures += TestMap.new().run()
+	failures += TestSfx.new().run()
 	quit(1 if failures > 0 else 0)

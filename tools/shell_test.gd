@@ -78,6 +78,20 @@ func _initialize() -> void:
 	for _i in 10:
 		await process_frame
 
+	# --- the ambience is actually playing (Nerite, #72) -----------------------------------
+	# Both halves of that blocker were invisible from the outside: a loop_end of 0 stops the
+	# stream instantly, and play() in the same frame as add_child silently does nothing. Both
+	# leave a player that is parented, configured and mute -- which looks exactly like audio
+	# that is merely too quiet. Only "is it still playing a second later" separates them.
+	await create_timer(1.0).timeout
+	var amb = app._sfx._ambience
+	_eq(amb.size(), 2, "both ambience beds have a player")
+	for p in amb:
+		_ok(p.playing, "an ambience bed is still playing a second in")
+		_ok(p.get_playback_position() > 0.1,
+			"and its playhead has moved (%.2fs)" % p.get_playback_position())
+		_ok(p.stream.loop_end > 0, "its loop range is set, not 0")
+
 	# --- the title screen comes first ---------------------------------------------------
 	_ok(app._title != null and app._title.visible, "the shell opens on the title screen")
 	_ok(app._map == null or not app._map.visible, "the map is not showing yet")

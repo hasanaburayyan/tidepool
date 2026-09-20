@@ -1,0 +1,18 @@
+# PROBE BOARD, not a shipping level. Two tees that both want rotation 1.
+# links: r1c1+r1c3
+id: 901
+name: Probe - Linked Twin
+size: 5x3
+par: 3
+tide: 9
+source: r1c0
+grid:
+  .. .. .. .. ..
+  e1 T3 i1 T3 ..
+  .. e0 .. e0 ..
+critters:
+  r2c1 anemone
+  r2c3 starfish
+solution:
+  r1c1 cw2
+  r1c3 ccw1
