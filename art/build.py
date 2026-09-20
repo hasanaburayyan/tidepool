@@ -395,8 +395,15 @@ RULES = os.path.join(ROOT, "art", "rules.json")
 REFRESH = ("godot --headless --path . --import && "
            "godot --headless --path . --script res://tools/dump_rules.gd && "
            "python3 art/build.py --snapshot-rules")
-JUNCTION_LEVEL = 9     # "Crossroads": a cross inside a real route
-REFUSAL_LEVEL = 14     # "Wrong Way": the level built on an arrow refusing
+## The two levels the previews are drawn from, picked BY NAME.
+##
+## They used to be numbers - level 9 and level 14 - and Maren's reorder moved both: "Wrong Way"
+## went to 6 and "Crossroads" to 17. The build then failed saying level 14 had no refusing arrow,
+## which was true and useless: nothing was wrong with level 14, it simply is not the level this
+## check was written about. A name follows its level through any renumbering; an id only points at
+## whatever has that number today.
+JUNCTION_LEVEL = "Crossroads"   # a cross inside a real route
+REFUSAL_LEVEL = "Wrong Way"     # the level built on an arrow refusing
 
 ## The three put in front of the Director, and the one she chose. The losers stay so the
 ## options sheet keeps rendering: whoever asks "why a gate?" sees the comparison.
@@ -435,8 +442,19 @@ def load_rules() -> dict:
     return data
 
 
-def level_by_id(rules: dict, level_id: int) -> dict:
-    return next(L for L in rules["levels"] if L["id"] == level_id)
+def level_by_name(rules: dict, name: str) -> dict:
+    """The level a preview is about, or a build failure naming it.
+
+    Deliberately loud when the name is gone: a renamed or deleted level should stop the build and
+    say which preview lost its subject, not fall back to some other level and draw a picture whose
+    caption is a lie.
+    """
+    for level in rules["levels"]:
+        if level["name"] == name:
+            return level
+    raise SystemExit("FAIL: no level called %r in art/rules.json - a preview is written about it. "
+                     "If it was renamed, update the name in build.py; if it was cut, cut the "
+                     "preview with it." % name)
 
 
 def _out_name(out) -> str:
@@ -641,14 +659,14 @@ def main() -> None:
 
     print("\nthe one-way arrow:")
     rules = load_rules()
-    wrong_way = level_by_id(rules, REFUSAL_LEVEL)
+    wrong_way = level_by_name(rules, REFUSAL_LEVEL)
     for when in ("at_start", "when_solved"):
         n = len(wrong_way["refusing_" + when])
         if n != 1:
-            raise SystemExit("FAIL: level %d must show exactly one arrow refusing %s, the engine says %d"
-                             % (REFUSAL_LEVEL, when.replace("_", " "), n))
+            raise SystemExit("FAIL: %r (level %d) must show exactly one arrow refusing %s, the engine says %d"
+                             % (REFUSAL_LEVEL, wrong_way["id"], when.replace("_", " "), n))
     print("  ok   level %d %s: exactly one arrow refusing, at start and when solved (engine's flow)"
-          % (REFUSAL_LEVEL, wrong_way["name"]))
+          % (wrong_way["id"], wrong_way["name"]))
     for out_dir in "NESW":
         for wet in (False, True):
             path = os.path.join(TILE_OUT, "oneway_%s_%s.png" % (out_dir.lower(), "wet" if wet else "dry"))
@@ -670,7 +688,7 @@ def main() -> None:
     scaled(compare, 3).save(os.path.join(PREVIEW_OUT, "locked_3x.png"))
     scaled(greyscale(compare), 3).save(os.path.join(PREVIEW_OUT, "locked_3x_greyscale.png"))
 
-    scene = render_level(level_by_id(rules, JUNCTION_LEVEL), "when_solved", pal)
+    scene = render_level(level_by_name(rules, JUNCTION_LEVEL), "when_solved", pal)
     scaled(scene, 4).save(os.path.join(PREVIEW_OUT, "junction_4x.png"))
     scaled(greyscale(scene), 4).save(os.path.join(PREVIEW_OUT, "junction_4x_greyscale.png"))
 
