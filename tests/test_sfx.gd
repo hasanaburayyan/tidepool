@@ -35,6 +35,7 @@ func run() -> int:
 	_test_variant_never_repeats()
 	_test_variant_edge_cases()
 	_test_volume_governs_the_master_bus()
+	_test_ambience_actually_loops()
 
 	print("")
 	if failures.is_empty():
@@ -153,3 +154,33 @@ func _test_volume_governs_the_master_bus() -> void:
 
 	AudioServer.set_bus_volume_db(bus, was_db)
 	AudioServer.set_bus_mute(bus, was_mute)
+
+
+## The test that would have caught it. Setting loop_mode alone leaves loop_end at 0, which
+## Godot reads as "loop ends at sample 0" -- the stream stops the instant it starts, with no
+## error and no warning. Ambience that never plays looks exactly like ambience that is too
+## quiet, which is why a silent failure here could have survived a whole listen pass.
+## (Nerite, #72.)
+func _test_ambience_actually_loops() -> void:
+	_suite("ambience actually loops")
+	for sound in ["amb_waves", "amb_gulls"]:
+		var path := "%s/%s.wav" % [SfxScript.DIR, sound]
+		_check(ResourceLoader.exists(path), "%s exists" % sound)
+		if not ResourceLoader.exists(path):
+			continue
+		var stream: AudioStream = load(path)
+		_check(stream is AudioStreamWAV, "%s is a WAV we can set a loop on" % sound)
+		if not (stream is AudioStreamWAV):
+			continue
+
+		var wav := stream as AudioStreamWAV
+		SfxScript.make_looping(wav)
+		_eq(wav.loop_mode, AudioStreamWAV.LOOP_FORWARD, "%s loops forward" % sound)
+		_check(wav.loop_begin == 0, "%s loops from the start" % sound)
+		# The actual bug: a loop_end of 0 means it stops immediately.
+		_check(wav.loop_end > 0, "%s has a real loop_end, not 0 (%d)" % [sound, wav.loop_end])
+		# And it has to be the whole sample, not an arbitrary non-zero number.
+		var expected := int(round(wav.mix_rate * wav.get_length()))
+		_eq(wav.loop_end, expected,
+			"%s loops over its whole length (%.1fs at %d Hz)" % [sound, wav.get_length(), wav.mix_rate])
+		_check(wav.get_length() > 1.0, "%s is a real bed, not a fragment" % sound)

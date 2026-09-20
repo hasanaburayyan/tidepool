@@ -64,14 +64,37 @@ func start_ambience(sounds: Array) -> void:
 		var stream := _stream(str(sound))
 		if stream == null:
 			continue
-		if stream is AudioStreamWAV:
-			(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+		make_looping(stream)
 		var p := AudioStreamPlayer.new()
 		p.bus = "Master"
 		p.stream = stream
 		add_child(p)
-		p.play()
+		# DEFERRED, and this is load-bearing. The shell calls start_ambience from its own
+		# _ready, so this player is created and told to play inside the same frame it is
+		# added to the tree -- and play() in that frame silently does nothing. The node ends
+		# up parented, configured, and mute. Deferring to the end of the frame, once the tree
+		# has settled, is what actually starts it. (Second half of Nerite's #72 blocker: the
+		# loop range was necessary but not sufficient.)
+		p.play.call_deferred()
 		_ambience.append(p)
+
+
+## Turn a WAV into a seamless loop.
+##
+## SETTING loop_mode ALONE IS NOT ENOUGH, and the failure is silent: loop_end defaults to 0,
+## which Godot reads as "loop ends at sample 0", so the stream stops the instant it starts.
+## It does not error and it does not warn -- the ambience simply never plays. loop_end has
+## to be the real sample count. (Found by Nerite on #72; I set the mode, assumed the range,
+## and shipped it without ever asserting the thing actually plays.)
+##
+## Static and separate from start_ambience so it can be tested without an audio device.
+static func make_looping(stream: AudioStream) -> void:
+	if not (stream is AudioStreamWAV):
+		return
+	var wav := stream as AudioStreamWAV
+	wav.loop_begin = 0
+	wav.loop_end = int(round(wav.mix_rate * wav.get_length()))
+	wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
 
 
 func _stream(sound: String) -> AudioStream:
