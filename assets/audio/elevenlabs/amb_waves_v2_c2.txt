@@ -1,0 +1,6 @@
+prompt: Slow low deep sea swell washing on a shore far away, muffled soft rumble, long gentle waves, very dark and warm, no high frequencies, no hiss, no gulls
+model: eleven_text_to_sound_v2
+duration_seconds: 22.0
+loop: True
+date: 2026-09-20
+decision: #16

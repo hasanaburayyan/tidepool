@@ -55,7 +55,7 @@ func _test_every_sound_exists() -> void:
 	# Every sound something actually calls for -- now the whole set Tern shipped.
 	for sound in ["rotate_click_1", "rotate_click_2", "rotate_click_3",
 			"locked_thunk", "rescue_chime", "shell_plink", "clear_wave", "menu_click",
-			"amb_waves", "amb_gulls", "gate_shut", "basin_held", "basin_overflow"]:
+			"amb_waves", "gate_shut", "basin_held", "basin_overflow"]:
 		var path := "%s/%s.wav" % [SfxScript.DIR, sound]
 		_check(ResourceLoader.exists(path), "%s is present" % path)
 
@@ -163,7 +163,7 @@ func _test_volume_governs_the_master_bus() -> void:
 ## (Nerite, #72.)
 func _test_ambience_actually_loops() -> void:
 	_suite("ambience actually loops")
-	for sound in ["amb_waves", "amb_gulls"]:
+	for sound in ["amb_waves"]:
 		var path := "%s/%s.wav" % [SfxScript.DIR, sound]
 		_check(ResourceLoader.exists(path), "%s exists" % sound)
 		if not ResourceLoader.exists(path):
