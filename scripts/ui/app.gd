@@ -36,6 +36,10 @@ var _map: Node = null
 var _level: Node = null
 var _settings: Node = null
 
+## The pool just cleared, held until the map is back on screen so the celebration plays
+## there rather than being missed behind the board's own clear wave.
+var _last_cleared := 0
+
 
 func _ready() -> void:
 	if save == null:
@@ -110,6 +114,9 @@ func show_map() -> void:
 	# The map reads its pool states from the save every frame it draws, so returning from a
 	# cleared pool needs nothing more than a redraw.
 	_map.queue_redraw()
+	if _last_cleared > 0:
+		_map.celebrate(_last_cleared)
+		_last_cleared = 0
 
 
 func _on_level_chosen(level_no: int) -> void:
@@ -138,6 +145,7 @@ func _open(board, level_no: int) -> void:
 
 
 func _on_level_cleared(level_no: int, stars: int, _moves: int) -> void:
+	_last_cleared = level_no
 	save.record_clear(level_no, stars)
 	# Written the moment it is earned, not on the way out: a crash or a force-quit during
 	# the celebration must not take the stars back.

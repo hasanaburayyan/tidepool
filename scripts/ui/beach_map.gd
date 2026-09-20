@@ -20,10 +20,21 @@ const ART_DIR := "res://assets/map"
 ## brightens", no bounce and no snap, so this is a flat tint and not a scale.
 const HOVER_TINT := Color(1.12, 1.12, 1.12)
 
+## The ripple colour, matching the splash the board uses when water arrives.
+const SPLASH := Color("9fe8f0")
+
 ## A locked pool answers a click by shaking, the same vocabulary board.gd uses for
 ## barnacles: silence reads as a dropped click.
 const SHAKE_TIME := 0.25
 const SHAKE_PIXELS := 3.0
+
+## The level-clear moment (tidepool-beach-map, confirmed by Maren): coming back from a
+## cleared pool, its shells fill ONE AT A TIME about 0.2s apart, and then the next pool
+## unlocks with a small ripple. It is the only thing on this screen that asks for attention,
+## and it is a reward rather than a transition -- so nothing else animates while it runs.
+const SHELL_STEP := 0.2
+const RIPPLE_TIME := 0.9
+const RIPPLE_RADIUS := 46.0
 
 var save: RefCounted
 
@@ -31,6 +42,11 @@ var _art: Dictionary = {}
 var _hover := 0
 var _shake_level := 0
 var _shake_left := 0.0
+
+## The pool whose shells are filling, and how long the celebration has been running. -1.0
+## means nothing is celebrating.
+var _celebrate_level := 0
+var _celebrate_t := -1.0
 
 
 func _ready() -> void:
@@ -102,7 +118,31 @@ func _unhandled_input(event: InputEvent) -> void:
 	level_chosen.emit(level)
 
 
+## Called by the shell when the player comes back from a pool they just cleared. The map
+## does not decide when this happens -- it cannot know, since it reads a save that was
+## already written -- so the shell tells it.
+func celebrate(level_no: int) -> void:
+	_celebrate_level = level_no
+	_celebrate_t = 0.0
+	queue_redraw()
+
+
+## Shells first, then the ripple on the pool that just unlocked.
+func _shells_done() -> float:
+	return float(save.stars_for(_celebrate_level)) * SHELL_STEP
+
+
+func _celebrating() -> bool:
+	return _celebrate_t >= 0.0
+
+
 func _process(delta: float) -> void:
+	if _celebrating():
+		_celebrate_t += delta
+		if _celebrate_t > _shells_done() + RIPPLE_TIME:
+			_celebrate_t = -1.0
+			_celebrate_level = 0
+		queue_redraw()
 	if _shake_left > 0.0:
 		_shake_left -= delta
 		if _shake_left <= 0.0:
@@ -117,6 +157,28 @@ func _draw() -> void:
 		draw_texture(_art["beach"], Vector2.ZERO)
 	for entry in MapLayout.POOLS:
 		_draw_pool(entry)
+	_draw_ripple()
+
+
+## A ring opening outward on the pool that just unlocked, once its predecessor's shells have
+## finished. Drawn over everything so it reads even where pools sit close together.
+func _draw_ripple() -> void:
+	if not _celebrating():
+		return
+	var t := _celebrate_t - _shells_done()
+	if t < 0.0:
+		return
+	var next := _celebrate_level + 1
+	var centre := Vector2.ZERO
+	for entry in MapLayout.POOLS:
+		if int(entry["level"]) == next:
+			centre = Vector2(int(entry["x"]), int(entry["y"]))
+	if centre == Vector2.ZERO:
+		return
+	var k := clampf(t / RIPPLE_TIME, 0.0, 1.0)
+	# Fades as it grows, so it ends by disappearing rather than by being switched off.
+	draw_arc(centre, RIPPLE_RADIUS * k, 0.0, TAU, 48,
+		Color(SPLASH.r, SPLASH.g, SPLASH.b, 1.0 - k), 3.0)
 
 
 func _draw_pool(entry: Dictionary) -> void:
@@ -136,6 +198,10 @@ func _draw_pool(entry: Dictionary) -> void:
 	# The shells only ever say how you did, never what you could win.
 	if state != "locked":
 		var earned := int(save.stars_for(level))
+		# During the celebration the cleared pool's shells arrive one at a time. Every other
+		# pool draws its full count, so the eye has only one thing to follow.
+		if _celebrating() and level == _celebrate_level:
+			earned = mini(earned, int(floorf(_celebrate_t / SHELL_STEP)))
 		for i in (entry["shells"] as Array).size():
 			var s: Array = entry["shells"][i]
 			var key := "shell_filled" if i < earned else "shell_empty"

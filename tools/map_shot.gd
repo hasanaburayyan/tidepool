@@ -58,6 +58,14 @@ func _initialize() -> void:
 	for _i in 20:
 		await process_frame
 
+	# "cel:<level>:<seconds>" in overrides captures the level-clear celebration part-way
+	# through, which is the only way to see a moment that is over in about a second.
+	for pair in overrides.split(",", false):
+		var bits := String(pair).split(":", false)
+		if bits.size() == 3 and bits[0] == "cel":
+			scene.celebrate(int(bits[1]))
+			await create_timer(float(bits[2])).timeout
+
 	var img := root.get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
 	var err := img.save_png(out)
