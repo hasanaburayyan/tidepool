@@ -5,11 +5,12 @@ import wave, pathlib
 import numpy as np
 
 SR = 44100
-OUT = pathlib.Path(__file__).parent / "sfx"
+OUT = pathlib.Path(__file__).resolve().parent.parent / "assets" / "audio" / "sfx"
 
 # Peak targets in dBFS. The rescue chime (later) sits at -6; nothing is louder.
 PARAMS = {
     "click": {"peak_db": -15.0, "variants": 3, "freqs": [610, 655, 575], "len": 0.075},
+    "chime": {"peak_db": -6.0, "f1": 880, "f2": 1318.5, "len": 0.9},
     "thunk": {"peak_db": -13.0, "freq": 118, "len": 0.20},
 }
 
@@ -51,9 +52,24 @@ def write(name, x):
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
         w.writeframes((np.clip(x, -1, 1) * 32767).astype(np.int16).tobytes())
 
-OUT.mkdir(exist_ok=True)
+def chime():
+    p = PARAMS["chime"]; rng = np.random.default_rng(11)
+    n = int(SR * p["len"]); x = np.zeros(n)
+    # two bell notes (rising fifth = "yes", never falling) + a small bubble blip: bright, the only bright sound
+    for start, f in ((0.0, p["f1"]), (0.11, p["f2"])):
+        t = np.arange(n - int(start*SR)) / SR
+        note = (np.sin(2*np.pi*f*t) + 0.3*np.sin(2*np.pi*f*2.01*t)*np.exp(-t*12)) * np.exp(-t*7)
+        note[:int(SR*0.004)] *= np.linspace(0, 1, int(SR*0.004))
+        x[int(start*SR):] += note
+    t = np.arange(int(SR*0.09)) / SR
+    bub = np.sin(2*np.pi*np.cumsum(500 + 2500*t)/SR) * np.exp(-t*40) * 0.25
+    x[int(0.05*SR):int(0.05*SR)+len(bub)] += bub
+    return fade(norm(x, p["peak_db"]), 30)
+
+OUT.mkdir(parents=True, exist_ok=True)
 for i in range(PARAMS["click"]["variants"]): write(f"rotate_click_{i+1}", click(i))
 write("locked_thunk", thunk())
+write("rescue_chime", chime())
 for f in sorted(OUT.glob("*.wav")):
     d = np.frombuffer(wave.open(str(f)).readframes(10**7), np.int16) / 32768
     print(f.name, f"{len(d)/SR*1000:.0f}ms peak {20*np.log10(abs(d).max()):.1f}dBFS rms {20*np.log10(np.sqrt((d**2).mean())):.1f}dBFS")

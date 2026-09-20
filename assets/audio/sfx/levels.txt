@@ -1,4 +1,5 @@
 locked_thunk.wav 200ms peak -14.6dBFS rms -26.2dBFS
+rescue_chime.wav 900ms peak -6.0dBFS rms -21.2dBFS
 rotate_click_1.wav 75ms peak -15.0dBFS rms -29.1dBFS
 rotate_click_2.wav 75ms peak -15.5dBFS rms -29.2dBFS
 rotate_click_3.wav 75ms peak -15.0dBFS rms -29.1dBFS
