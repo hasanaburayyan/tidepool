@@ -253,6 +253,38 @@ func _initialize() -> void:
 	_eq(quits[0], 2, "Escape from the title again asks to quit -- the chain really ends in quit")
 	_ok(app._map == null or not app._map.visible, "and it did not bounce back into the map")
 
+	# --- re-clearing a pool announces nothing (Nerite, #67) -------------------------------
+	# The ripple says "this pool just unlocked" and the shells say "this is a new result".
+	# Beating a pool you have already beaten, at no better star count, is neither -- so the
+	# map should not celebrate at all. The bug was reading the save AFTER record_clear, which
+	# made every replay look like a first clear.
+	# The Escape checks above left us on the title, so get back to the map first. Clicked in
+	# open sand, away from both the pools and the settings glyph.
+	await _click_at(Vector2(480, 300))
+	_ok(app._map != null and app._map.visible, "back on the map to replay a pool")
+	await _click_at(_centre(1))
+	_ok(app._level != null, "pool 1 can be replayed")
+	if app._level != null:
+		var again = app._level.get_node("Board")
+		for step in again.solution:
+			for _k in int(step["clicks"]):
+				if again.cleared:
+					break
+				await _click_at(again._tile_rect(step["pos"]).get_center(),
+					MOUSE_BUTTON_RIGHT if step.get("ccw", false) else MOUSE_BUTTON_LEFT)
+		_ok(again.cleared, "the replay clears it again")
+		_ok(not app._last_ripple, "a replay is not a new unlock, so no ripple is queued")
+		# Read BEFORE leaving: show_map() frees the level, and touching a freed Board crashes.
+		var replay_stars: int = again.stars()
+		await create_timer(again.WIPE_TIME + 0.2).timeout
+		await _click_at(Vector2(480, 300))
+		_ok(app._level == null, "and it returns to the map")
+		_eq(replay_stars, save.stars_for(1), "the replay earned the same stars, so nothing improved")
+		_ok(not app._map._celebrating(),
+			"the map does not celebrate a replay at all -- nothing to announce")
+		_eq(app._map.state_of(1), "done", "pool 1 is still done")
+		_eq(save.stars_for(1), stars, "and its stars are unchanged by the replay")
+
 	# --- restart persistence (Nerite's check) --------------------------------------------
 	# Save twice over an existing file, then read it back cold: this is the DirAccess.rename
 	# -onto-an-existing-file path, which is the one unverified on Windows.

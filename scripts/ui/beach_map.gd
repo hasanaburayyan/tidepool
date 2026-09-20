@@ -57,6 +57,12 @@ var _shake_left := 0.0
 var _celebrate_level := 0
 var _celebrate_t := -1.0
 
+## Whether this celebration includes each half. Re-clearing a pool you have already beaten
+## is not a first clear: the next pool unlocked long ago, so rippling it again would
+## announce something that is not news. (Found by Nerite on #67.)
+var _celebrate_ripple := true
+var _celebrate_shells := true
+
 
 func _ready() -> void:
 	_load_art()
@@ -136,14 +142,30 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Called by the shell when the player comes back from a pool they just cleared. The map
 ## does not decide when this happens -- it cannot know, since it reads a save that was
 ## already written -- so the shell tells it.
-func celebrate(level_no: int) -> void:
+func celebrate(level_no: int, ripple: bool = true, shells: bool = true) -> void:
 	_celebrate_level = level_no
-	_celebrate_t = 0.0
+	_celebrate_ripple = ripple
+	_celebrate_shells = shells
+	# Nothing to announce cancels instead of starting: this is also what clears a stale
+	# celebration, see cancel_celebration.
+	_celebrate_t = 0.0 if (ripple or shells) else -1.0
+	queue_redraw()
+
+
+## Stop any celebration outright. The map stops processing while a pool is open, so one
+## interrupted by the player diving straight into the next pool would otherwise sit frozen
+## and then resume minutes later, announcing something that happened long ago. Arriving at
+## the map without a fresh clear means nothing should be moving.
+func cancel_celebration() -> void:
+	_celebrate_t = -1.0
+	_celebrate_level = 0
 	queue_redraw()
 
 
 ## Shells first, then the ripple on the pool that just unlocked.
 func _shells_done() -> float:
+	if not _celebrate_shells:
+		return 0.0
 	return float(save.stars_for(_celebrate_level)) * SHELL_STEP
 
 
@@ -183,6 +205,8 @@ func _draw() -> void:
 func _draw_ripple() -> void:
 	if not _celebrating():
 		return
+	if not _celebrate_ripple:
+		return
 	var t := _celebrate_t - _shells_done()
 	if t < 0.0:
 		return
@@ -218,7 +242,7 @@ func _draw_pool(entry: Dictionary) -> void:
 		var earned := int(save.stars_for(level))
 		# During the celebration the cleared pool's shells arrive one at a time. Every other
 		# pool draws its full count, so the eye has only one thing to follow.
-		if _celebrating() and level == _celebrate_level:
+		if _celebrating() and _celebrate_shells and level == _celebrate_level:
 			earned = mini(earned, int(floorf(_celebrate_t / SHELL_STEP)))
 		for i in (entry["shells"] as Array).size():
 			var s: Array = entry["shells"][i]
