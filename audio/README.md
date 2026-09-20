@@ -31,3 +31,10 @@ Levels raised because step 1 is bus -14 dB (Nerite): a -15 dBFS click was -29 at
 - `gate_shut` (-9, 0.30s): soft slide then flat wooden thock; no falling pitch, no buzz. Fire when the sluice bar shuts, only while it is visible.
 - `basin_held` (-10) / `basin_overflow` (-7): same body (seed, tone), held is low-passed and dull, overflow adds a rising bright wash. Fire on the frame the basin state is shown.
 - `menu_click` (-11): soft tick for menu buttons.
+
+## Ambience (wind cut by Maren)
+`amb_waves.wav` (24 s, -18 dBFS peak) and `amb_gulls.wav` (37 s, -22 dBFS, 4 sparse calls that fully decay inside the loop).
+Different, coprime-ish lengths so the pair does not audibly repeat together. Waves are FFT-filtered noise, circular by
+construction, with three shallow integer-cycle modulations, so there is no seam and no swell to count. Loop in code:
+set `AudioStreamWAV.loop_mode = LOOP_FORWARD` with loop_end = sample count (or set it in the .wav import). Play both
+continuously across level and map (C6). Far below the chime: at step 1 (bus -14) waves peak about -32 dBFS; needs a listen.

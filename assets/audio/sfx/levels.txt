@@ -1,3 +1,5 @@
+amb_gulls.wav 37000ms peak -22.0dBFS rms -42.8dBFS
+amb_waves.wav 24000ms peak -18.0dBFS rms -32.7dBFS
 basin_held.wav 350ms peak -10.0dBFS rms -20.8dBFS
 basin_overflow.wav 900ms peak -7.0dBFS rms -21.7dBFS
 clear_wave.wav 1200ms peak -6.0dBFS rms -22.9dBFS

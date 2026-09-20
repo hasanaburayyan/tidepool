@@ -17,6 +17,8 @@ PARAMS = {
     "basin_held": {"peak_db": -10.0, "len": 0.35},
     "basin_overflow": {"peak_db": -7.0, "len": 0.9},
     "menu": {"peak_db": -11.0, "freq": 740, "len": 0.06},
+    "amb_waves": {"peak_db": -18.0, "secs": 24},
+    "amb_gulls": {"peak_db": -22.0, "secs": 37, "calls": [[4.0, 1500], [15.5, 1750], [16.3, 1400], [29.0, 1600]]},
     "thunk": {"peak_db": -8.0, "freq": 118, "len": 0.20},
 }
 
@@ -125,6 +127,31 @@ def menu():
     x[:int(SR*0.002)] *= np.linspace(0, 1, int(SR*0.002))
     return norm(fade(x, 5), p["peak_db"])
 
+def _band_circular(x, lo, hi):
+    """FFT band-pass: circular by construction, so a loop of this has no seam."""
+    X = np.fft.rfft(x); f = np.fft.rfftfreq(len(x), 1/SR)
+    X *= ((f > lo) & (f < hi)) * (1 / (1 + (f / hi) ** 4))
+    return np.fft.irfft(X, len(x))
+
+def amb_waves():
+    p = PARAMS["amb_waves"]; n = SR * p["secs"]; T = np.arange(n) / SR
+    rng = np.random.default_rng(51)
+    bed = _band_circular(rng.standard_normal(n), 120, 1800)
+    # gentle irregular surf: LFOs with INTEGER cycles per loop (seam-free), shallow depth, none dominant (no swell to count)
+    m = 1.0 + 0.10*np.sin(2*np.pi*(T/p["secs"])*5 + 0.7) + 0.08*np.sin(2*np.pi*(T/p["secs"])*8 + 2.1) + 0.05*np.sin(2*np.pi*(T/p["secs"])*13 + 4.0)
+    return norm(bed * m, p["peak_db"])
+
+def amb_gulls():
+    p = PARAMS["amb_gulls"]; n = SR * p["secs"]; x = np.zeros(n)
+    for start, f0 in p["calls"]:
+        d = 0.55; t = np.arange(int(SR*d)) / SR
+        f = f0 * (1 + 0.25*np.sin(np.pi*t/d)) * (1 + 0.02*np.sin(2*np.pi*28*t))  # arch, tiny vibrato
+        ph = 2*np.pi*np.cumsum(f)/SR
+        call = (np.sin(ph) + 0.4*np.sin(2*ph) + 0.15*np.sin(3*ph)) * np.sin(np.pi*t/d)**2
+        i = int(start*SR); x[i:i+len(call)] += call
+    x = lp(x, 4000)
+    return norm(x, p["peak_db"])
+
 OUT.mkdir(parents=True, exist_ok=True)
 for i in range(PARAMS["click"]["variants"]): write(f"rotate_click_{i+1}", click(i))
 write("locked_thunk", thunk())
@@ -134,6 +161,8 @@ write("gate_shut", gate())
 write("basin_held", basin_held())
 write("basin_overflow", basin_overflow())
 write("menu_click", menu())
+write("amb_waves", amb_waves())
+write("amb_gulls", amb_gulls())
 write("clear_wave", wash())
 for f in sorted(OUT.glob("*.wav")):
     d = np.frombuffer(wave.open(str(f)).readframes(10**7), np.int16) / 32768
