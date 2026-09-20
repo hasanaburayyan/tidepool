@@ -1,31 +1,26 @@
-# Teaches: a current runs one way, and that is still useful. The locked tee at
-# r2c1 has its east mouth against o3 and is refused (level 14's lesson, repeated
-# in passing). The long way round arrives at the corridor's FAR end - and from
-# there the arrows finally cooperate, carrying water back west to the critter
-# sitting in the middle of them. The corridor was never broken. It was backwards.
+# Teaches: a basin needs BOTH currents. Routing only the short way along the row
+# fills the basin and stops there; the anemone waits until the long way round over
+# the top arrives too. The cheapest-looking route is the wrong plan.
 id: 16
-name: Current
-size: 7x5
-par: 13
-tide: 19
+name: Two Streams
+size: 6x4
+par: 9
+tide: 15
 source: r2c0
 grid:
-  .. L0 I0 I0 I0 L0 ..
-  .. I1 .. .. .. I1 ..
-  e1 t3 o3 i1 o3 T1 L0
-  .. .. .. .. .. .. I1
-  .. .. .. .. .. .. e0
+  .. L3 I1 L1 .. ..
+  .. I1 .. I1 .. ..
+  e1 T1 I0 b0 I0 e3
+  .. .. .. .. .. ..
 critters:
-  r2c3 anemone
-  r4c6 starfish
+  r2c5 anemone
 solution:
-  r1c1 cw1
   r0c1 cw1
-  r0c2 cw1
+  r0c1 cw1
   r0c3 cw1
-  r0c4 cw1
-  r0c5 cw2
-  r1c5 cw1
-  r2c5 cw2
-  r2c6 cw2
-  r3c6 cw1
+  r1c1 cw1
+  r1c3 cw1
+  r2c1 cw1
+  r2c1 cw1
+  r2c2 cw1
+  r2c4 cw1

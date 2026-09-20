@@ -1,26 +1,30 @@
-# Teaches: a basin needs BOTH currents. Routing only the short way along the row
-# fills the basin and stops there; the anemone waits until the long way round over
-# the top arrives too. The cheapest-looking route is the wrong plan.
+# Teaches: the two mechanics in one board. The locked tee still offers its east
+# mouth to an arrow that refuses it, the long way round still has to be aimed
+# DOWN through r1c4 - and now the drop lands on a tee that must feed both the
+# critter and a thirsty sponge at the bottom of a dead end. The sponge is the
+# reason you cannot simply run east and stop.
 id: 26
-name: Two Streams
-size: 6x4
-par: 9
-tide: 15
+name: Salt and Current
+size: 7x5
+par: 14
+tide: 20
 source: r2c0
 grid:
-  .. L3 I1 L1 .. ..
-  .. I1 .. I1 .. ..
-  e1 T1 I0 b0 I0 e3
-  .. .. .. .. .. ..
+  .. L3 I0 I0 L0 .. ..
+  .. I1 .. .. O0 .. ..
+  e1 t3 o3 i1 T2 I0 e3
+  .. .. .. .. I1 .. ..
+  .. .. .. .. P1 .. ..
 critters:
-  r2c5 anemone
+  r2c6 anemone
 solution:
-  r0c1 cw1
-  r0c1 cw1
-  r0c3 cw1
   r1c1 cw1
-  r1c3 cw1
-  r2c1 cw1
-  r2c1 cw1
-  r2c2 cw1
-  r2c4 cw1
+  r0c1 cw2
+  r0c2 cw1
+  r0c3 cw1
+  r0c4 cw2
+  r1c4 cw2
+  r2c4 cw2
+  r2c5 cw1
+  r3c4 cw1
+  r4c4 cw1

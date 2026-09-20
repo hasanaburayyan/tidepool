@@ -1,28 +1,33 @@
-# Teaches: a basin chain. The first basin, once overflowing, is the second basin's
-# second feed - it spills east AND south, and the southern spill loops round to feed
-# the second basin from below. One pair of currents fills two pools.
+# Teaches: the cross is a crossroads again, but now one of its mouths feeds a
+# thirst. Water drops in from the arrow above, and the hub has to serve a critter
+# east, a critter south past a sponge, and a third sitting in the old refused
+# corridor west - which fills backwards, exactly as level 16 taught.
 id: 27
-name: Cascade
-size: 7x4
-par: 11
-tide: 17
+name: Low Water
+size: 7x6
+par: 15
+tide: 21
 source: r2c0
 grid:
-  .. L0 I1 L0 .. .. ..
-  .. I1 .. I1 .. .. ..
-  e1 x0 I0 b0 I0 b0 e3
-  .. .. .. L2 I0 L2 ..
+  .. L3 I0 I0 L0 .. ..
+  .. I1 .. .. O0 .. ..
+  e1 t3 o3 i1 x0 I0 e3
+  .. .. .. .. I1 .. ..
+  .. .. P0 I0 T0 .. ..
+  .. .. .. .. e0 .. ..
 critters:
   r2c6 starfish
+  r5c4 anemone
+  r2c3 starfish
 solution:
-  r0c1 cw1
-  r0c3 cw1
-  r0c3 cw1
   r1c1 cw1
-  r1c3 cw1
-  r2c2 cw1
-  r2c4 cw1
-  r3c3 cw1
-  r3c3 cw1
+  r0c1 cw2
+  r0c2 cw1
+  r0c3 cw1
+  r0c4 cw2
+  r1c4 cw2
+  r2c5 cw1
   r3c4 cw1
-  r3c5 cw1
+  r4c4 cw2
+  r4c3 cw1
+  r4c2 cw1

@@ -1,30 +1,24 @@
-# Teaches: one cross feeds three ways at once. Efficiency comes from sharing a spine
-# rather than routing each critter separately.
+# Teaches: read the SHAPE, not the direction. The locked i1 at r2c3 looks like a
+# straight shot east and can never be fed, because r2c2 must become a corner.
 id: 9
-name: Crossroads
-size: 6x6
-par: 13
-tide: 18
+name: Long Way Round
+size: 5x5
+par: 8
+tide: 13
 source: r2c0
 grid:
-  .. .. e2 .. L0 L0
-  .. .. I1 .. I1 e0
-  e1 I0 x0 I0 L1 ..
-  .. .. I1 .. .. ..
-  .. .. L2 I0 e3 ..
-  .. .. .. .. .. ..
+  .. .. L0 i1 L0
+  .. .. I1 .. I1
+  e1 i1 L2 i1 i0
+  .. .. e1 I0 L2
+  .. .. .. .. ..
 critters:
-  r0c2 anemone
-  r4c4 starfish
-  r1c5 starfish
+  r3c2 starfish
 solution:
-  r2c1 cw1
+  r2c2 cw1
   r1c2 cw1
-  r3c2 cw1
-  r4c2 cw2
-  r4c3 cw1
-  r2c3 cw1
-  r2c4 cw2
+  r0c2 cw1
+  r0c4 cw2
   r1c4 cw1
-  r0c4 cw1
-  r0c5 cw2
+  r3c4 cw1
+  r3c3 cw1

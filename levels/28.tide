@@ -1,27 +1,39 @@
-# Teaches: basin + one-way. The arrow on the top loop starts pointing back west and
-# sits shut, so the basin waits on one feed. Turn the arrow to carry the second
-# current east and the basin overflows. Two mechanics, one decision.
+# The last pool, and a victory lap by design.
+#
+# Every rule the game has is on this board - a refusing arrow, an arrow to aim
+# down, a corridor that only fills backwards, a cross serving three ways, two
+# thirsts that each cost a dead-end branch - but most of the plumbing is already
+# laid. The board is the biggest in the game and the par is not: 13 against
+# level 23's 15, so difficulty peaks at 23 and this one sends the player off.
+#
+# It was par 20 in its first cut, which made it the hardest level in the game.
+# Ending a cozy puzzle on its hardest board is exactly the feeling Pillar 1
+# exists to prevent, so I pre-laid four tiles rather than shrink the pool.
 id: 28
-name: Held Back
-size: 6x4
-par: 10
-tide: 16
+name: The Last Pool
+size: 7x6
+par: 13
+tide: 19
 source: r2c0
 grid:
-  .. L0 O3 L1 .. ..
-  .. I1 .. I1 .. ..
-  e1 T1 I0 b0 I0 e3
-  .. .. .. .. .. ..
+  .. L1 T1 I0 L0 .. ..
+  .. I1 P1 .. O0 .. ..
+  e1 t3 o3 i1 x0 I0 L2
+  .. .. .. .. I1 .. I0
+  .. .. P0 I0 T0 .. e0
+  .. .. .. .. e0 .. ..
 critters:
-  r2c5 anemone
+  r5c4 anemone
+  r4c6 starfish
+  r2c3 starfish
 solution:
-  r0c1 cw1
-  r0c2 cw1
-  r0c2 cw1
-  r0c3 cw1
   r1c1 cw1
-  r1c3 cw1
-  r2c1 cw1
-  r2c1 cw1
-  r2c2 cw1
-  r2c4 cw1
+  r1c2 cw1
+  r0c3 cw1
+  r0c4 cw2
+  r1c4 cw2
+  r2c5 cw1
+  r3c4 cw1
+  r4c4 cw2
+  r4c3 cw1
+  r4c2 cw1

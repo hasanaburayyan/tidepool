@@ -1,31 +1,31 @@
-# The one-way finale. Every arrow the player has turned so far pointed east or
-# west; this one has to point DOWN. The locked tee at r2c1 offers its east mouth
-# to o3 one last time and is refused, so the route is north, along the top, and
-# then through an arrow the player must aim south to drop into the pools below.
+# Teaches: a current runs one way, and that is still useful. The locked tee at
+# r2c1 has its east mouth against o3 and is refused (level 14's lesson, repeated
+# in passing). The long way round arrives at the corridor's FAR end - and from
+# there the arrows finally cooperate, carrying water back west to the critter
+# sitting in the middle of them. The corridor was never broken. It was backwards.
 id: 18
-name: Against the Tide
+name: Current
 size: 7x5
-par: 15
-tide: 21
+par: 13
+tide: 19
 source: r2c0
 grid:
-  .. L3 I0 I0 I0 L0 ..
-  .. I1 .. .. .. O0 ..
-  e1 t3 o3 i1 i1 T2 e3
-  .. .. .. .. .. I1 ..
-  .. .. .. e1 I0 L2 ..
+  .. L0 I0 I0 I0 L0 ..
+  .. I1 .. .. .. I1 ..
+  e1 t3 o3 i1 o3 T1 L0
+  .. .. .. .. .. .. I1
+  .. .. .. .. .. .. e0
 critters:
-  r2c6 anemone
-  r4c3 starfish
+  r2c3 anemone
+  r4c6 starfish
 solution:
   r1c1 cw1
-  r0c1 cw2
+  r0c1 cw1
   r0c2 cw1
   r0c3 cw1
   r0c4 cw1
   r0c5 cw2
-  r1c5 cw2
+  r1c5 cw1
   r2c5 cw2
-  r3c5 cw1
-  r4c5 cw1
-  r4c4 cw1
+  r2c6 cw2
+  r3c6 cw1

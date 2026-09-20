@@ -1,28 +1,31 @@
-# Teaches: a sponge has to FACE the branch that feeds it. The sponge at r0c2 is
-# uppercase and starts lying east-west, so the tee below it can push water at its
-# side all day and nothing happens. One rotation turns it to meet the branch. The
-# locked sponge at r0c4 is already facing the right way, so the player has a
-# correct example on screen while they work out the broken one.
+# Teaches: a current is a one-way street, so take your turning BEFORE you enter it.
+# Three locked arrows at r2c2-r2c4 all point east. Once water is in that spine it
+# cannot come back, so the branch to the anemone has to leave from r2c1 - upstream
+# of the current. A player who routes into the spine first has to reset, and the
+# reset is free. This is the level where "plan the split" becomes the skill.
 id: 21
-name: Wrung Out
+name: Downstream
 size: 7x5
-par: 10
-tide: 16
+par: 14
+tide: 20
 source: r2c0
 grid:
-  .. .. P1 .. p0 .. ..
-  .. .. I1 .. I1 .. ..
-  e1 I0 T1 I0 T1 I0 e3
-  .. .. .. .. .. .. ..
-  .. .. .. .. .. .. ..
+  .. L3 I0 I0 I0 e3 ..
+  .. I1 .. .. .. .. ..
+  e1 T1 o1 o1 o1 L0 ..
+  .. .. .. .. .. I1 ..
+  .. .. .. e1 I0 L1 ..
 critters:
-  r2c6 starfish
+  r0c5 anemone
+  r4c3 starfish
 solution:
-  r2c1 cw1
-  r2c2 cw2
-  r1c2 cw1
+  r2c1 cw2
+  r1c1 cw1
+  r0c1 cw2
   r0c2 cw1
-  r2c3 cw1
-  r2c4 cw2
-  r1c4 cw1
-  r2c5 cw1
+  r0c3 cw1
+  r0c4 cw1
+  r2c5 cw2
+  r3c5 cw1
+  r4c5 cw2
+  r4c4 cw1

@@ -1,31 +1,29 @@
-# Teaches: a hub plus two long tails at once. The cross at r2c2 has a west mouth
-# facing bare rock - still fine, still dry. Level 5's lesson at full scale.
+# Teaches: counter-clockwise pays. r1c5 is three clockwise taps or one anti-clockwise
+# one. A player who never right-clicks still finishes, at two stars instead of three.
 id: 11
-name: Three Pools
-size: 5x6
-par: 15
-tide: 20
-source: r5c0
+name: Two Mouths
+size: 6x6
+par: 10
+tide: 15
+source: r3c0
 grid:
-  .. .. e2 e1 L0
-  .. .. I1 .. I1
-  .. .. x0 I0 T0
-  L0 i1 L1 .. I1
-  I1 .. e1 I0 L1
-  e0 .. .. .. ..
+  .. .. .. .. .. ..
+  .. .. L0 i1 I0 L3
+  .. .. I1 .. e2 I1
+  e1 i1 T1 .. I1 e0
+  .. .. L3 I0 L2 ..
+  .. .. .. .. .. ..
 critters:
-  r0c2 anemone
-  r0c3 starfish
-  r4c2 starfish
+  r3c5 starfish
+  r2c4 anemone
 solution:
-  r4c0 cw1
-  r3c0 cw1
-  r3c2 cw2
+  r3c2 cw1
+  r2c2 cw1
   r1c2 cw1
-  r2c3 cw1
-  r2c4 cw2
   r1c4 cw1
-  r0c4 cw2
-  r3c4 cw1
-  r4c4 cw2
+  r1c5 ccw1
+  r2c5 cw1
+  r4c2 cw1
   r4c3 cw1
+  r4c4 cw1
+  r3c4 cw1

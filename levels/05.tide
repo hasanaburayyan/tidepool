@@ -1,24 +1,22 @@
-# Teaches: the cross is never worth rotating; two branches at once; a connection
-# facing bare rock is simply dry, not broken.
+# Teaches: locked tiles shape the route, AND that water filling a dead-end stub is
+# harmless. The i0 at r3c3 fills and goes nowhere. That moment tells the player they
+# are not required to fill the whole pool - the anxiety this genre usually creates.
 id: 5
-name: Second Pool
-size: 5x5
-par: 7
-tide: 12
-source: r2c0
+name: Barnacles
+size: 6x5
+par: 6
+tide: 11
+source: r3c0
 grid:
-  .. .. L0 e3 ..
-  .. .. I1 .. ..
-  e1 I0 x0 T0 L0
-  .. .. .. .. I1
-  .. .. .. .. e0
+  .. .. .. .. .. ..
+  .. .. .. .. .. ..
+  .. .. L3 T0 I0 e3
+  e1 i1 L1 i0 .. ..
+  .. .. .. .. .. ..
 critters:
-  r0c3 anemone
-  r4c4 starfish
+  r2c5 starfish
 solution:
-  r2c1 cw1
-  r1c2 cw1
-  r0c2 cw1
+  r3c2 cw2
+  r2c2 cw2
   r2c3 cw1
-  r2c4 cw2
-  r3c4 cw1
+  r2c4 cw1

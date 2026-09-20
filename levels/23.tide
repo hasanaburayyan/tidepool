@@ -1,33 +1,31 @@
-# Teaches: the cross is a crossroads again, but now one of its mouths feeds a
-# thirst. Water drops in from the arrow above, and the hub has to serve a critter
-# east, a critter south past a sponge, and a third sitting in the old refused
-# corridor west - which fills backwards, exactly as level 16 taught.
+# Teaches: a hub plus two long tails at once. The cross at r2c2 has a west mouth
+# facing bare rock - still fine, still dry. Level 5's lesson at full scale.
 id: 23
-name: Low Water
-size: 7x6
+name: Three Pools
+size: 5x6
 par: 15
-tide: 21
-source: r2c0
+tide: 20
+source: r5c0
 grid:
-  .. L3 I0 I0 L0 .. ..
-  .. I1 .. .. O0 .. ..
-  e1 t3 o3 i1 x0 I0 e3
-  .. .. .. .. I1 .. ..
-  .. .. P0 I0 T0 .. ..
-  .. .. .. .. e0 .. ..
+  .. .. e2 e1 L0
+  .. .. I1 .. I1
+  .. .. x0 I0 T0
+  L0 i1 L1 .. I1
+  I1 .. e1 I0 L1
+  e0 .. .. .. ..
 critters:
-  r2c6 starfish
-  r5c4 anemone
-  r2c3 starfish
+  r0c2 anemone
+  r0c3 starfish
+  r4c2 starfish
 solution:
-  r1c1 cw1
-  r0c1 cw2
-  r0c2 cw1
-  r0c3 cw1
+  r4c0 cw1
+  r3c0 cw1
+  r3c2 cw2
+  r1c2 cw1
+  r2c3 cw1
+  r2c4 cw2
+  r1c4 cw1
   r0c4 cw2
-  r1c4 cw2
-  r2c5 cw1
   r3c4 cw1
   r4c4 cw2
   r4c3 cw1
-  r4c2 cw1
