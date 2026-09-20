@@ -75,7 +75,7 @@ def plink():
     x[:int(SR*0.003)] *= np.linspace(0, 1, int(SR*0.003))
     return norm(fade(x, 20), p["peak_db"])
 
-def wave():
+def wash():
     # one soft wash: rounded rise to peak_at, long fall; a single event, not a loop
     p = PARAMS["wave"]; rng = np.random.default_rng(23)
     t = np.arange(int(SR*p["len"])) / SR
@@ -88,7 +88,7 @@ for i in range(PARAMS["click"]["variants"]): write(f"rotate_click_{i+1}", click(
 write("locked_thunk", thunk())
 write("rescue_chime", chime())
 write("shell_plink", plink())
-write("clear_wave", wave())
+write("clear_wave", wash())
 for f in sorted(OUT.glob("*.wav")):
     d = np.frombuffer(wave.open(str(f)).readframes(10**7), np.int16) / 32768
     print(f.name, f"{len(d)/SR*1000:.0f}ms peak {20*np.log10(abs(d).max()):.1f}dBFS rms {20*np.log10(np.sqrt((d**2).mean())):.1f}dBFS")

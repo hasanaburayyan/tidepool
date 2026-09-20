@@ -1,0 +1,7 @@
+clear_wave.wav 1200ms peak -6.0dBFS rms -22.9dBFS
+locked_thunk.wav 200ms peak -8.0dBFS rms -19.7dBFS
+rescue_chime.wav 900ms peak -3.0dBFS rms -18.2dBFS
+rotate_click_1.wav 75ms peak -9.0dBFS rms -23.1dBFS
+rotate_click_2.wav 75ms peak -9.5dBFS rms -23.2dBFS
+rotate_click_3.wav 75ms peak -9.0dBFS rms -23.1dBFS
+shell_plink.wav 250ms peak -7.0dBFS rms -18.9dBFS
