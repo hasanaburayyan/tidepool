@@ -334,9 +334,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_R:
 				restart()
 			KEY_RIGHT, KEY_N:
-				load_level(level_index + 1)
+				_step_level(1)
 			KEY_LEFT, KEY_P:
-				load_level(level_index - 1)
+				_step_level(-1)
 			KEY_ESCAPE:
 				# In the shell, Escape backs out to the map; quitting the whole game from
 				# inside a pool would be a trapdoor.
@@ -383,6 +383,20 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## A rotation that changes nothing is free: barnacled tiles, bare sand and crosses all
 ## refuse, and a refused turn never costs the player tide.
+## Walking to the next or previous level is a development shortcut on the bare board, and
+## it stays exactly that. In the shell it does nothing: the map is the only thing that
+## chooses a pool, because the board does not know what is unlocked -- and must not, since
+## keeping progression out of here is what lets the board stay ignorant of the save.
+##
+## Without this guard, N inside pool 2 walks straight into a locked pool, and clearing it
+## records progress the player never earned: a save with pool 4 cleared and pool 3 not,
+## which is a state the unlock rule says cannot exist. (Found by Nerite, TIDE-48.)
+func _step_level(delta: int) -> void:
+	if shell_mode:
+		return
+	load_level(level_index + delta)
+
+
 ## Leave this pool and let the shell decide what is next. The event is marked handled
 ## because the board is freed as a direct result of it: without this the very same click or
 ## keypress goes on to the map that just reappeared -- the post-wave click lands on whatever
@@ -670,5 +684,9 @@ func _draw_hud() -> void:
 	elif resetting > 0.0:
 		status = "the tide comes back in..."
 	else:
-		status = "left-click turns, right-click turns back   -   Reset Pool is free, N/P level, Esc quit"
+		# The hint has to match what the keys actually do. In the shell N/P are dead and Esc
+		# goes back to the map, so telling a playtester otherwise sends them hunting for a
+		# bug that is really a wrong instruction.
+		status = "left-click turns, right-click turns back   -   Reset Pool is free, " \
+			+ ("Esc back to the map" if shell_mode else "N/P level, Esc quit")
 	draw_string(_font, Vector2(MARGIN.x, board_bottom + 32), status, 0, -1, 17, TEXT)
