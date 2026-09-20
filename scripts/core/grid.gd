@@ -88,8 +88,9 @@ func channels_only() -> bool:
 ## contains a mechanic the player has to think about.
 ##
 ## THE rule, in one place, because it has been in three. `tools/verify_levels.gd` had it keyed to
-## the mechanic (fixed in #81); `tests/test_core.gd` and the now-deleted `tools/validate_levels.py`
-## each kept their own copy keyed to `id <= 12`. Those agreed only by coincidence - levels 1-12
+## the mechanic (fixed in #81); `tests/test_core.gd` and `tools/validate_levels.py` each kept their
+## own copy keyed to `id <= 12`. Both of those copies are gone; the python file itself is NOT -
+## it survives as the .tide parser that `tools/probe_mechanic.py` and `tools/spikes/` import. Those agreed only by coincidence - levels 1-12
 ## happened to be channels-only - and the 2026-09-20 reorder broke the coincidence: "The Arrow"
 ## moved to 4 carrying par+6 and the test failed a level that was correct.
 ##
