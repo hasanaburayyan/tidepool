@@ -26,7 +26,10 @@ const Validator = preload("res://scripts/core/validator.gd")
 ##   optimal  no shorter solution exists -- the engine's own search agrees with the
 ##            declared par (this is the one that catches a rules disagreement between
 ##            my BFS and the Director's validator)
-##   tide     tide == par + 5 for levels 1-12, par + 6 from 13 on
+##   tide     tide == the budget `Grid.expected_tide()` gives this level's CONTENT: par+5 for a
+##            channels-only level, par+6 once it carries a mechanic. Not keyed to the level
+##            number -- that was a proxy that only held while nobody reordered, and TIDE-72
+##            reordered.
 ##
 ## Exit code is 1 if anything FAILS, so CI can gate on it. A level whose optimality
 ## search runs out of node budget WARNS instead: an unproven par is not a broken level,
