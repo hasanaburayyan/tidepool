@@ -1,0 +1,31 @@
+# Teaches: a current runs one way, and that is still useful. The locked tee at
+# r2c1 has its east mouth against o3 and is refused (level 14's lesson, repeated
+# in passing). The long way round arrives at the corridor's FAR end - and from
+# there the arrows finally cooperate, carrying water back west to the critter
+# sitting in the middle of them. The corridor was never broken. It was backwards.
+id: 16
+name: Current
+size: 7x5
+par: 13
+tide: 19
+source: r2c0
+grid:
+  .. L0 I0 I0 I0 L0 ..
+  .. I1 .. .. .. I1 ..
+  e1 t3 o3 i1 o3 T1 L0
+  .. .. .. .. .. .. I1
+  .. .. .. .. .. .. e0
+critters:
+  r2c3 anemone
+  r4c6 starfish
+solution:
+  r1c1 cw1
+  r0c1 cw1
+  r0c2 cw1
+  r0c3 cw1
+  r0c4 cw1
+  r0c5 cw2
+  r1c5 cw1
+  r2c5 cw2
+  r2c6 cw2
+  r3c6 cw1

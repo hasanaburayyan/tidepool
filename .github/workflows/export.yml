@@ -22,6 +22,32 @@ jobs:
           mv /root/.local/share/godot/export_templates/* ~/.local/share/godot/export_templates/ 2>/dev/null || true
       - name: Import project
         run: godot --headless --path . --import || true
+
+      # Stricter than the PR gate on purpose. On a pull request an unproven par is a
+      # warning; on something we are about to hand a player it is a failure, because
+      # shipping a par no implementation has proven means the level may be beatable
+      # in fewer moves than it claims.
+      # A build that cannot be clicked is not a build. This needs a real window, so it
+      # cannot join the headless test job -- but nothing should ever be exported from
+      # code that fails it. TIDE-19 shipped an unplayable build for exactly this gap.
+      # The image has no display server; click.yml installs the same thing for PRs.
+      - name: Virtual display and software GL
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri \
+            libxcursor1 libxinerama1 libxrandr2 libxi6 libxkbcommon0 > /dev/null
+      - name: Clicks reach the board
+        timeout-minutes: 3
+        run: >
+          xvfb-run -a -s "-screen 0 1280x800x24"
+          godot --path . --rendering-driver opengl3 --audio-driver Dummy
+          --script res://tools/click_test.gd
+
+      - name: Verify every level (release strictness)
+        env:
+          TIDEPOOL_RELEASE: "1"
+          TIDEPOOL_NODE_BUDGET: "60000000"
+        run: godot --headless --path . --script res://tools/verify_levels.gd -- res://levels
       - name: Export Linux
         run: |
           mkdir -p build/linux
@@ -30,10 +56,19 @@ jobs:
         run: |
           mkdir -p build/macos
           godot --headless --path . --export-release "macOS" build/macos/tidepool.zip
+      # Same job as the others on purpose: the click gate above covers every platform we ship.
+      - name: Export Windows
+        run: |
+          mkdir -p build/windows
+          godot --headless --path . --export-release "Windows Desktop" build/windows/Tidepool.exe
+          test -s build/windows/Tidepool.exe
       - name: Package
         run: |
-          cd build && zip -r tidepool-linux-${GITHUB_REF_NAME:-manual}.zip linux
-          cp macos/tidepool.zip tidepool-macos-${GITHUB_REF_NAME:-manual}.zip
+          # A branch like build/windows would otherwise turn into a directory in the file name.
+          REF=$(echo "${GITHUB_REF_NAME:-manual}" | tr '/' '-')
+          cd build && zip -r tidepool-linux-$REF.zip linux
+          cp macos/tidepool.zip tidepool-macos-$REF.zip
+          zip -r tidepool-windows-$REF.zip windows
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
@@ -41,9 +76,18 @@ jobs:
           files: |
             build/tidepool-linux-*.zip
             build/tidepool-macos-*.zip
+            build/tidepool-windows-*.zip
       - name: Upload artifacts (manual runs)
         if: "!startsWith(github.ref, 'refs/tags/v')"
         uses: actions/upload-artifact@v4
         with:
           name: tidepool-builds
           path: build/*.zip
+      # Its own artifact, uploaded as the bare folder: GitHub zips an artifact on download, so a
+      # Windows player gets one zip holding Tidepool.exe instead of a zip inside a zip.
+      - name: Upload Windows artifact (manual runs)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: tidepool-windows
+          path: build/windows/

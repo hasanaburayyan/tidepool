@@ -1,0 +1,6 @@
+{
+  "id": 2, "title": "Around The Rock", "par": 3, "tide": 35,
+  "source": { "pos": [0, 4], "from": "W" },
+  "grid": [ ".....", ".....", "..|..", "..-..", "--F.." ],
+  "critters": [ { "pos": [2, 2], "type": "starfish" } ]
+}

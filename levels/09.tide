@@ -1,0 +1,30 @@
+# Teaches: one cross feeds three ways at once. Efficiency comes from sharing a spine
+# rather than routing each critter separately.
+id: 9
+name: Crossroads
+size: 6x6
+par: 13
+tide: 18
+source: r2c0
+grid:
+  .. .. e2 .. L0 L0
+  .. .. I1 .. I1 e0
+  e1 I0 x0 I0 L1 ..
+  .. .. I1 .. .. ..
+  .. .. L2 I0 e3 ..
+  .. .. .. .. .. ..
+critters:
+  r0c2 anemone
+  r4c4 starfish
+  r1c5 starfish
+solution:
+  r2c1 cw1
+  r1c2 cw1
+  r3c2 cw1
+  r4c2 cw2
+  r4c3 cw1
+  r2c3 cw1
+  r2c4 cw2
+  r1c4 cw1
+  r0c4 cw1
+  r0c5 cw2

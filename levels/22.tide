@@ -1,0 +1,30 @@
+# Teaches: the two mechanics in one board. The locked tee still offers its east
+# mouth to an arrow that refuses it, the long way round still has to be aimed
+# DOWN through r1c4 - and now the drop lands on a tee that must feed both the
+# critter and a thirsty sponge at the bottom of a dead end. The sponge is the
+# reason you cannot simply run east and stop.
+id: 22
+name: Salt and Current
+size: 7x5
+par: 14
+tide: 20
+source: r2c0
+grid:
+  .. L3 I0 I0 L0 .. ..
+  .. I1 .. .. O0 .. ..
+  e1 t3 o3 i1 T2 I0 e3
+  .. .. .. .. I1 .. ..
+  .. .. .. .. P1 .. ..
+critters:
+  r2c6 anemone
+solution:
+  r1c1 cw1
+  r0c1 cw2
+  r0c2 cw1
+  r0c3 cw1
+  r0c4 cw2
+  r1c4 cw2
+  r2c4 cw2
+  r2c5 cw1
+  r3c4 cw1
+  r4c4 cw1

@@ -11,3 +11,11 @@ export/
 # OS / editor
 .DS_Store
 *.tmp
+.godot/
+export/
+*.tmp
+build/
+__pycache__/
+
+__pycache__/
+*.pyc

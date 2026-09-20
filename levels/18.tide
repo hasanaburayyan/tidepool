@@ -1,0 +1,31 @@
+# The one-way finale. Every arrow the player has turned so far pointed east or
+# west; this one has to point DOWN. The locked tee at r2c1 offers its east mouth
+# to o3 one last time and is refused, so the route is north, along the top, and
+# then through an arrow the player must aim south to drop into the pools below.
+id: 18
+name: Against the Tide
+size: 7x5
+par: 15
+tide: 21
+source: r2c0
+grid:
+  .. L3 I0 I0 I0 L0 ..
+  .. I1 .. .. .. O0 ..
+  e1 t3 o3 i1 i1 T2 e3
+  .. .. .. .. .. I1 ..
+  .. .. .. e1 I0 L2 ..
+critters:
+  r2c6 anemone
+  r4c3 starfish
+solution:
+  r1c1 cw1
+  r0c1 cw2
+  r0c2 cw1
+  r0c3 cw1
+  r0c4 cw1
+  r0c5 cw2
+  r1c5 cw2
+  r2c5 cw2
+  r3c5 cw1
+  r4c5 cw1
+  r4c4 cw1
