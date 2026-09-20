@@ -93,6 +93,16 @@ func _initialize() -> void:
 	_eq(board.grid.id, 1, "the pool that opened is level 1, not some other index")
 	_ok(board.shell_mode, "the board is in shell mode")
 
+	# --- the level-change keys must not walk past the unlock rule (Nerite, TIDE-48) -------
+	# On the bare board N/P/arrows step between levels, which is a development shortcut. In
+	# the shell that shortcut walks into a LOCKED pool, and clearing it records progress the
+	# player never earned -- a save with pool 4 cleared and pool 3 not, which the unlock rule
+	# says cannot exist. Only pool 1 is open right now, so any movement here is the bug.
+	for key in [KEY_N, KEY_P, KEY_RIGHT, KEY_LEFT]:
+		await _key(key)
+		_eq(board.grid.id, 1, "key %d does not walk the shell off level 1" % key)
+	_eq(app._level.get_node("Board"), board, "and the pool was never swapped out underneath")
+
 	# Marlow's constraint: emitted once, on the transition, not on the latched value.
 	board.level_cleared.connect(func(_l, _s, _m): _emits += 1)
 
@@ -155,6 +165,16 @@ func _initialize() -> void:
 	_ok(restarted.is_unlocked(2), "pool 2 is still unlocked after a restart")
 	_ok(not FileAccess.file_exists(save_path + SaveDataScript.TMP_SUFFIX),
 		"no temp file is left behind")
+
+	# The invariant the key bug broke, checked on the file rather than in memory: a save may
+	# never contain a cleared pool whose predecessor is not cleared. However the player got
+	# there, that state is unreachable by the rules, so finding it means something bypassed
+	# the map.
+	_eq(restarted.cleared_count(), 1, "exactly one pool is recorded cleared")
+	for n in range(2, MapLayout.POOLS.size() + 1):
+		if restarted.is_cleared(n):
+			_ok(restarted.is_cleared(n - 1),
+				"pool %d is cleared, so pool %d must be too" % [n, n - 1])
 
 	if FileAccess.file_exists(save_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
