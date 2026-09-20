@@ -421,6 +421,25 @@ func _test_flow_oneway_and_sponge() -> void:
 		_check(not arrow.can_exit_through(side),
 			"a one-way pointing E does not leak out of side %d, though its mask is open" % side)
 
+	# The source tile is wet BY DEFINITION -- fed from outside the board rather than through one
+	# of its own openings -- so the ordinary entry rule never gets a say there. `Flow._walk` has a
+	# guard for the one case that does stop it: an arrow at the mouth pointing back out to sea.
+	# Deleting that guard cost the whole suite 0 failures, so nothing was watching it; the mouth
+	# stayed wet instead of the board going dry. No shipped level puts a one-way on the source
+	# (10 of 33 use one-ways, none there) and rotation cannot change a tile's KIND, so this is a
+	# latent rule, not a live bug -- it is the level that has not been designed yet that needs it.
+	var mouth := _grid_from(["---"], Vector2i(0, 0), Tile.W)
+	var src := mouth.at(Vector2i(0, 0))
+	src.kind = Tile.Kind.ONEWAY
+	src.out_dir = Tile.W  # The tide arrives from W; the arrow sends it straight back out.
+	_eq(Flow.wet_positions(mouth, Flow.compute(mouth)), [],
+		"an arrow at the tide's mouth pointing out to sea leaves the whole board dry")
+
+	src.out_dir = Tile.E  # Control: same tile, same board, arrow turned with the tide.
+	_eq(Flow.wet_positions(mouth, Flow.compute(mouth)),
+		[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
+		"the same arrow turned with the tide lets the water in")
+
 	_suite("sponge")
 	var sponge_grid := _grid_from(["---"], Vector2i(0, 0), Tile.W)
 	sponge_grid.at(Vector2i(1, 0)).kind = Tile.Kind.SPONGE
