@@ -1,23 +1,27 @@
-# SPONGE DEMONSTRATION LEVEL - trivially 3-star, not a puzzle.
-# A sponge is thirsty rock: it must end up wet, and it never passes water on.
-# So it always costs you a dead-end branch. Here the branch is one tile long and
-# the tee that feeds it is the only real decision. Same job level 13 does for the
-# arrow: introduce the symbol doing nothing surprising.
+# Teaches: basin + one-way. The arrow on the top loop starts pointing back west and
+# sits shut, so the basin waits on one feed. Turn the arrow to carry the second
+# current east and the basin overflows. Two mechanics, one decision.
 id: 19
-name: Thirsty Rock
-size: 5x5
-par: 4
-tide: 10
+name: Held Back
+size: 6x4
+par: 10
+tide: 16
 source: r2c0
 grid:
-  .. .. p0 .. ..
-  .. .. I1 .. ..
-  e1 i1 T1 I0 e3
-  .. .. .. .. ..
-  .. .. .. .. ..
+  .. L0 O3 L1 .. ..
+  .. I1 .. I1 .. ..
+  e1 T1 I0 b0 I0 e3
+  .. .. .. .. .. ..
 critters:
-  r2c4 starfish
+  r2c5 anemone
 solution:
-  r2c2 cw2
-  r1c2 cw1
-  r2c3 cw1
+  r0c1 cw1
+  r0c2 cw1
+  r0c2 cw1
+  r0c3 cw1
+  r1c1 cw1
+  r1c3 cw1
+  r2c1 cw1
+  r2c1 cw1
+  r2c2 cw1
+  r2c4 cw1

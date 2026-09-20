@@ -1,31 +1,28 @@
-# The channels finale: two tees in series, three critters, no new rules. Everything
-# the player has learned about shape-reading, in one board.
+# Teaches: a sponge has to FACE the branch that feeds it. The sponge at r0c2 is
+# uppercase and starts lying east-west, so the tee below it can push water at its
+# side all day and nothing happens. One rotation turns it to meet the branch. The
+# locked sponge at r0c4 is already facing the right way, so the player has a
+# correct example on screen while they work out the broken one.
 id: 12
-name: Last Channel
-size: 6x5
-par: 16
-tide: 21
+name: Wrung Out
+size: 7x5
+par: 10
+tide: 16
 source: r2c0
 grid:
-  .. .. L0 i1 I0 L0
-  .. .. I1 e2 e2 I1
-  e1 I0 T0 I1 I1 e0
-  .. .. L2 T1 L2 ..
-  .. .. .. .. .. ..
+  .. .. P1 .. p0 .. ..
+  .. .. I1 .. I1 .. ..
+  e1 I0 T1 I0 T1 I0 e3
+  .. .. .. .. .. .. ..
+  .. .. .. .. .. .. ..
 critters:
-  r1c3 anemone
-  r1c4 starfish
-  r2c5 starfish
+  r2c6 starfish
 solution:
   r2c1 cw1
   r2c2 cw2
   r1c2 cw1
   r0c2 cw1
-  r0c4 cw1
-  r0c5 cw2
-  r1c5 cw1
-  r3c2 cw2
-  r3c3 cw2
   r2c3 cw1
-  r3c4 cw1
-  r2c4 cw1
+  r2c4 cw2
+  r1c4 cw1
+  r2c5 cw1

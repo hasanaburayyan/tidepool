@@ -1,28 +1,23 @@
-# Teaches: read the LOCKED tiles. Column c3 is a barnacle seam; four of its five
-# tiles are vertical and inert, and only r2c3 faces east-west. It is the gate.
+# SPONGE DEMONSTRATION LEVEL - trivially 3-star, not a puzzle.
+# A sponge is thirsty rock: it must end up wet, and it never passes water on.
+# So it always costs you a dead-end branch. Here the branch is one tile long and
+# the tee that feeds it is the only real decision. Same job level 13 does for the
+# arrow: introduce the symbol doing nothing surprising.
 id: 8
-name: Barnacle Wall
-size: 6x6
-par: 11
-tide: 16
-source: r4c0
+name: Thirsty Rock
+size: 5x5
+par: 4
+tide: 10
+source: r2c0
 grid:
-  .. .. .. i0 L0 e3
-  .. .. .. i0 I1 ..
-  .. L0 I0 i1 T0 ..
-  .. I1 .. i0 I1 ..
-  e1 L2 .. i0 L2 e3
-  .. .. .. .. .. ..
+  .. .. p0 .. ..
+  .. .. I1 .. ..
+  e1 i1 T1 I0 e3
+  .. .. .. .. ..
+  .. .. .. .. ..
 critters:
-  r0c5 anemone
-  r4c5 starfish
+  r2c4 starfish
 solution:
-  r4c1 cw1
-  r3c1 cw1
-  r2c1 cw1
-  r2c2 cw1
-  r2c4 cw2
-  r1c4 cw1
-  r0c4 cw1
-  r3c4 cw1
-  r4c4 cw2
+  r2c2 cw2
+  r1c2 cw1
+  r2c3 cw1
