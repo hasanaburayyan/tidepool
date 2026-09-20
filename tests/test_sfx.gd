@@ -51,13 +51,10 @@ func run() -> int:
 ## the failure nobody notices until a playtester says "I didn't hear anything".
 func _test_every_sound_exists() -> void:
 	_suite("every sound exists")
-	# Every sound something actually calls for. Deliberately NOT the whole directory:
-	# gate_shut, basin_held and basin_overflow shipped in #71 but have no event wired yet
-	# (there is no sluice/gate mechanic in the game at all), so listing them here would
-	# assert against files nothing plays.
+	# Every sound something actually calls for -- now the whole set Tern shipped.
 	for sound in ["rotate_click_1", "rotate_click_2", "rotate_click_3",
 			"locked_thunk", "rescue_chime", "shell_plink", "clear_wave", "menu_click",
-			"amb_waves", "amb_gulls"]:
+			"amb_waves", "amb_gulls", "gate_shut", "basin_held", "basin_overflow"]:
 		var path := "%s/%s.wav" % [SfxScript.DIR, sound]
 		_check(ResourceLoader.exists(path), "%s is present" % path)
 

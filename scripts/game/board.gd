@@ -255,11 +255,56 @@ func restart() -> void:
 	_loading = false
 
 
+## The three state sounds Tern specced, all on the RISING EDGE only.
+##
+## _recompute runs on every rotation, so a sound keyed on the state rather than on the
+## change would retrigger every click for as long as the state held -- an arrow already
+## refusing would shut again and again. Each of these fires when something ENTERS its
+## state, never while it stays there, and never on level entry (`_loading`).
+##
+## At most one of each kind per rotation: if a rotation shuts two arrows or fills two
+## basins, that is one event to the ear, not two on top of each other.
+func _sound_state_changes(before: Dictionary, was_refusing: Dictionary,
+		was_overflowing: Dictionary) -> void:
+	if _loading or _sfx == null:
+		return
+
+	# gate_shut: a one-way newly turning water away. "Gate" was Tern's shorthand from
+	# Maren's doc for the sluice bar shutting -- it is the arrow refusing, nothing else.
+	for idx in refusing:
+		if not was_refusing.has(idx):
+			_sfx.play("gate_shut")
+			break
+
+	# basin_overflow: a basin newly passing water on.
+	var overflowed := false
+	for idx in overflowing:
+		if not was_overflowing.has(idx):
+			overflowed = true
+			break
+	if overflowed:
+		_sfx.play("basin_overflow")
+
+	# basin_held: a basin newly wet that is NOT passing water on -- part-full, holding it.
+	# A basin that fills and overflows in the same rotation is an overflow, not a hold, so
+	# `overflowing` is checked against the new state rather than the old.
+	for idx in wet:
+		if before.has(idx) or overflowing.has(idx):
+			continue
+		var tile := grid.at(grid.pos_of(int(idx)))
+		if tile != null and tile.kind == Tile.Kind.BASIN:
+			_sfx.play("basin_held")
+			break
+
+
 func _recompute() -> void:
 	var before := wet
+	var was_refusing := refusing
+	var was_overflowing := overflowing
 	wet = Flow.compute(grid)
 	refusing = Flow.refusing(grid, wet)
 	overflowing = Flow.overflowing(grid)
+	_sound_state_changes(before, was_refusing, was_overflowing)
 	# Animate only the difference, and in route order: each newly-wet tile waits its distance
 	# from the nearest newly-wet tile, so the eye follows the path the water actually took.
 	var depth := Flow.distances(grid)
