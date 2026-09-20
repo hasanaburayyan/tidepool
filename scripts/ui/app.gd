@@ -36,6 +36,10 @@ var _map: Node = null
 var _level: Node = null
 var _settings: Node = null
 
+## Whichever screen settings was opened over, so its input can be restored on close. It is
+## a layer, not a place -- it can sit over the title, the map or an open pool.
+var _settings_over: Node = null
+
 ## The pool just cleared, held until the map is back on screen so the celebration plays
 ## there rather than being missed behind the board's own clear wave.
 var _last_cleared := 0
@@ -83,21 +87,36 @@ func show_title() -> void:
 ## is why the panel dims what is behind instead of covering it. The title keeps drawing and
 ## stops taking input, so a click on the panel cannot also start the game.
 func show_settings() -> void:
-	if _settings == null:
-		_settings = SETTINGS_SCENE.instantiate()
-		_settings.save = save
-		_settings.closed.connect(_close_settings)
-		add_child(_settings)
-	_title.set_process_unhandled_input(false)
+	if _settings != null:
+		return
+	_settings_over = _input_owner()
+	if _settings_over != null:
+		_settings_over.set_process_unhandled_input(false)
+	_settings = SETTINGS_SCENE.instantiate()
+	_settings.save = save
+	_settings.closed.connect(_close_settings)
+	add_child(_settings)
 	_set_active(_settings, true)
+
+
+## The node actually taking input right now. For an open pool that is the Board inside
+## main.tscn, not the scene root -- disabling the root would leave the board still clickable
+## underneath the panel.
+func _input_owner() -> Node:
+	if _level != null:
+		return _level.get_node_or_null("Board")
+	if _map != null and _map.visible:
+		return _map
+	return _title
 
 
 func _close_settings() -> void:
 	if _settings != null:
 		_settings.queue_free()
 		_settings = null
-	if _title != null:
-		_title.set_process_unhandled_input(true)
+	if _settings_over != null:
+		_settings_over.set_process_unhandled_input(true)
+		_settings_over = null
 
 
 func show_map() -> void:
@@ -109,6 +128,7 @@ func show_map() -> void:
 		_map = MAP_SCENE.instantiate()
 		_map.save = save
 		_map.level_chosen.connect(_on_level_chosen)
+		_map.settings_requested.connect(show_settings)
 		add_child(_map)
 	_set_active(_map, true)
 	# The map reads its pool states from the save every frame it draws, so returning from a
@@ -127,6 +147,7 @@ func _on_level_chosen(level_no: int) -> void:
 	board.shell_mode = true
 	board.level_cleared.connect(_on_level_cleared)
 	board.exit_requested.connect(show_map)
+	board.settings_requested.connect(show_settings)
 	_open(board, level_no)
 
 

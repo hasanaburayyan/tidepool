@@ -13,7 +13,16 @@ extends Node2D
 ## with a shake rather than silently ignored, and never reaches this signal.
 signal level_chosen(level_no: int)
 
+## The top-right settings glyph, same one the title and the board carry.
+signal settings_requested()
+
 const SaveDataScript := preload("res://scripts/systems/save_data.gd")
+const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
+const SETTINGS_RECT := SettingsPanel.SETTINGS_RECT
+
+## Dry Sand with an ink rim, so the glyph reads against sand or water alike.
+const GLYPH := Color("d9bf8f")
+const INK := Color("3a2f26")
 const ART_DIR := "res://assets/map"
 
 ## How much brighter the water goes under the cursor. Maren asked for "the water in it
@@ -107,6 +116,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.button_index != MOUSE_BUTTON_LEFT:
 		return
+	# Checked before the pools, for the same reason the title checks it before "any click
+	# begins": otherwise a pool sitting under the glyph would swallow it.
+	if SETTINGS_RECT.has_point(event.position):
+		settings_requested.emit()
+		get_viewport().set_input_as_handled()
+		return
 	var level := level_at(event.position)
 	if level == 0:
 		return
@@ -158,6 +173,9 @@ func _draw() -> void:
 	for entry in MapLayout.POOLS:
 		_draw_pool(entry)
 	_draw_ripple()
+	SettingsPanel.draw_glyph(self, Rect2(SETTINGS_RECT.position + Vector2.ONE,
+		SETTINGS_RECT.size), INK)
+	SettingsPanel.draw_glyph(self, SETTINGS_RECT, GLYPH)
 
 
 ## A ring opening outward on the pool that just unlocked, once its predecessor's shells have

@@ -116,11 +116,11 @@ func _initialize() -> void:
 		vol_on_disk.load_game()
 		_eq(vol_on_disk.get_volume(), 1.0, "the volume is already on disk before closing")
 
-		# The close glyph, top-right of the panel: Maren asked for a visible way out as well
-		# as Escape, "both, not either". Untested it would be exactly the kind of control
-		# that looks present and does nothing.
-		await _click_at(panel._close.get_center())
-		_ok(app._settings == null, "the close glyph closes settings")
+		# Clicking the SAME top-right glyph again closes the panel. Maren dropped the separate
+		# in-panel close button as a duplicate of the toggle, and the panel deliberately does
+		# not cover that corner, so the glyph stays visible and clickable through the dim.
+		await _click_at(app._title.SETTINGS_RECT.get_center())
+		_ok(app._settings == null, "clicking the glyph again closes settings")
 		_ok(app._map == null or not app._map.visible,
 			"and the closing click does NOT fall through and start the game")
 		_eq(quits[0], 1, "and it did not ask to quit")
@@ -163,6 +163,19 @@ func _initialize() -> void:
 	var board = app._level.get_node("Board")
 	_eq(board.grid.id, 1, "the pool that opened is level 1, not some other index")
 	_ok(board.shell_mode, "the board is in shell mode")
+
+	# --- settings from inside a pool (Maren) ---------------------------------------------
+	# "What a player actually wants mid-level is the volume, and the top-right glyph gives
+	# them that without leaving the pool." Two ways this could go wrong: the click also turns
+	# a tile underneath, or Escape closing the panel also fires the board's exit-to-map.
+	var moves_before: int = board.moves
+	await _click_at(app._title.SETTINGS_RECT.get_center())
+	_ok(app._settings != null, "the top-right glyph opens settings from inside a pool")
+	_eq(board.moves, moves_before, "and that click did not also turn a tile")
+	await _key(KEY_ESCAPE)
+	_ok(app._settings == null, "Escape closes settings")
+	_ok(app._level != null, "and leaves you IN the pool, not back on the map")
+	_eq(board.moves, moves_before, "and still no tile was turned")
 
 	# --- the level-change keys must not walk past the unlock rule (Nerite, TIDE-48) -------
 	# On the bare board N/P/arrows step between levels, which is a development shortcut. In

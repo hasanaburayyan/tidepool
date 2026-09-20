@@ -20,10 +20,11 @@ signal play_requested()
 ## It is one rect and one draw call, so moving it is cheap if she wants it elsewhere.
 signal settings_requested()
 
-## Bottom-right, away from the title and the pool, where it does not compete with either.
-const SETTINGS_RECT := Rect2(884, 564, 44, 44)
-
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
+
+## Top-right, the one corner that is free on every screen (Maren). Defined once in
+## settings_panel.gd so the title, the map and the board cannot drift apart.
+const SETTINGS_RECT := SettingsPanel.SETTINGS_RECT
 
 const ART_DIR := "res://assets/map"
 
