@@ -43,6 +43,8 @@ var _settings_over: Node = null
 ## The pool just cleared, held until the map is back on screen so the celebration plays
 ## there rather than being missed behind the board's own clear wave.
 var _last_cleared := 0
+var _last_ripple := true
+var _last_shells := true
 
 
 func _ready() -> void:
@@ -135,8 +137,12 @@ func show_map() -> void:
 	# cleared pool needs nothing more than a redraw.
 	_map.queue_redraw()
 	if _last_cleared > 0:
-		_map.celebrate(_last_cleared)
+		_map.celebrate(_last_cleared, _last_ripple, _last_shells)
 		_last_cleared = 0
+	else:
+		# No fresh clear, so nothing should be animating -- including a celebration that was
+		# frozen part-way when the player dived into the next pool.
+		_map.cancel_celebration()
 
 
 func _on_level_chosen(level_no: int) -> void:
@@ -166,7 +172,12 @@ func _open(board, level_no: int) -> void:
 
 
 func _on_level_cleared(level_no: int, stars: int, _moves: int) -> void:
+	# Read BEFORE record_clear, or the save already says the next pool is unlocked and every
+	# replay looks like a first clear. The ripple announces a NEW unlock; the shells announce
+	# a new result. Re-beating a pool you have already beaten is neither. (Nerite, #67.)
 	_last_cleared = level_no
+	_last_ripple = not save.is_unlocked(level_no + 1)
+	_last_shells = not save.is_cleared(level_no) or stars > save.stars_for(level_no)
 	save.record_clear(level_no, stars)
 	# Written the moment it is earned, not on the way out: a crash or a force-quit during
 	# the celebration must not take the stars back.
