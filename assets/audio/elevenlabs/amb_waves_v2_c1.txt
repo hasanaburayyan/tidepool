@@ -1,0 +1,6 @@
+prompt: Very distant ocean surf heard through a closed window, low slow rumbling shoreline wash, deep and muffled, no hiss, no birds, no music, nothing tonal
+model: eleven_text_to_sound_v2
+duration_seconds: 22.0
+loop: True
+date: 2026-09-20
+decision: #16

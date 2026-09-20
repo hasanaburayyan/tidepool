@@ -18,7 +18,6 @@ PARAMS = {
     "basin_overflow": {"peak_db": -7.0, "len": 0.9},
     "menu": {"peak_db": -11.0, "freq": 740, "len": 0.06},
     "amb_waves": {"peak_db": -18.0, "secs": 24},
-    "amb_gulls": {"peak_db": -22.0, "secs": 37, "calls": [[4.0, 1500], [15.5, 1750], [16.3, 1400], [29.0, 1600]]},
     "thunk": {"peak_db": -8.0, "freq": 118, "len": 0.20},
 }
 
@@ -141,17 +140,6 @@ def amb_waves():
     m = 1.0 + 0.10*np.sin(2*np.pi*(T/p["secs"])*5 + 0.7) + 0.08*np.sin(2*np.pi*(T/p["secs"])*8 + 2.1) + 0.05*np.sin(2*np.pi*(T/p["secs"])*13 + 4.0)
     return norm(bed * m, p["peak_db"])
 
-def amb_gulls():
-    p = PARAMS["amb_gulls"]; n = SR * p["secs"]; x = np.zeros(n)
-    for start, f0 in p["calls"]:
-        d = 0.55; t = np.arange(int(SR*d)) / SR
-        f = f0 * (1 + 0.25*np.sin(np.pi*t/d)) * (1 + 0.02*np.sin(2*np.pi*28*t))  # arch, tiny vibrato
-        ph = 2*np.pi*np.cumsum(f)/SR
-        call = (np.sin(ph) + 0.4*np.sin(2*ph) + 0.15*np.sin(3*ph)) * np.sin(np.pi*t/d)**2
-        i = int(start*SR); x[i:i+len(call)] += call
-    x = lp(x, 4000)
-    return norm(x, p["peak_db"])
-
 OUT.mkdir(parents=True, exist_ok=True)
 for i in range(PARAMS["click"]["variants"]): write(f"rotate_click_{i+1}", click(i))
 write("locked_thunk", thunk())
@@ -161,8 +149,9 @@ write("gate_shut", gate())
 write("basin_held", basin_held())
 write("basin_overflow", basin_overflow())
 write("menu_click", menu())
-write("amb_waves", amb_waves())
-write("amb_gulls", amb_gulls())
+(OUT.parent.parent.parent / "audio" / "fallback").mkdir(exist_ok=True)
+# script waves are a non-shipping fallback: the shipping amb_waves.wav is audio/finish_ambience.py (board listen, P0)
+FB = OUT.parent.parent.parent / "audio" / "fallback"; OUT, _fb = FB, OUT; write("amb_waves_script", amb_waves()); OUT = _fb
 write("clear_wave", wash())
 for f in sorted(OUT.glob("*.wav")):
     d = np.frombuffer(wave.open(str(f)).readframes(10**7), np.int16) / 32768

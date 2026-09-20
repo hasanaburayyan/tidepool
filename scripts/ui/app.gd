@@ -59,7 +59,7 @@ func _ready() -> void:
 	_apply_settings()
 	_sfx = SfxScript.new()
 	add_child(_sfx)
-	_sfx.start_ambience(["amb_waves", "amb_gulls"])
+	_sfx.start_ambience(["amb_waves"])
 	show_title()
 
 

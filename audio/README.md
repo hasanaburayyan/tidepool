@@ -45,3 +45,13 @@ Outputs in `assets/audio/elevenlabs/`: raw `.mp3` + sidecar `.txt` (prompt, mode
 level-matched to the mix ceilings (waves -18, gulls -22, chime -3). `COUNT.txt` = generations used (cap 60).
 The script-made set in `assets/audio/sfx/` is the fallback and is untouched. Nothing here is wired yet; not ear-verified.
 Note: a first gulls prompt ("very sparse") returned near-silence (-55 dB peak); it counted against the cap.
+
+## Ambience, revised after the board listen (P0)
+Board verdict on the first build: clicks fine; background noise "very terrible"; screeches annoying. The gulls are **deleted**
+(no `amb_gulls.wav`, one ambience player). The script wave bed (band-passed white noise, centroid ~800 Hz) was a steady
+"shhh" and is now only a non-shipping fallback: `audio/fallback/amb_waves_script.wav`.
+Shipping `assets/audio/sfx/amb_waves.wav` = ElevenLabs candidate `amb_waves_v2_c3` (Decision #16, 3 candidates, gens 5-7),
+post-processed by `audio/finish_ambience.py` (70 Hz circular high-pass, peak -20 dBFS). Measured: 22 s, centroid 152 Hz,
+0.003 % of energy above 4 kHz, seam 11 vs typical step 8. Candidates c1 (93 % below 60 Hz, 9x envelope swings) and c2
+(4.9x swings) were rejected; v1 (4.5 % above 4 kHz) too. Honest caveat: it is mostly deep rumble; small speakers will play
+little of it. If a listener hears nothing, the answer is silence or a level change, never a brighter bed.

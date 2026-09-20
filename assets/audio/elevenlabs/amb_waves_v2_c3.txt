@@ -1,0 +1,6 @@
+prompt: Calm distant surf, soft low whooshing waves, muffled like heard from inside a house, steady, smooth, no crackle, no birds, no wind whistle
+model: eleven_text_to_sound_v2
+duration_seconds: 22.0
+loop: True
+date: 2026-09-20
+decision: #16

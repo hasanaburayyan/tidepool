@@ -85,7 +85,7 @@ func _initialize() -> void:
 	# that is merely too quiet. Only "is it still playing a second later" separates them.
 	await create_timer(1.0).timeout
 	var amb = app._sfx._ambience
-	_eq(amb.size(), 2, "both ambience beds have a player")
+	_eq(amb.size(), 1, "the ambience bed has a player")
 	for p in amb:
 		_ok(p.playing, "an ambience bed is still playing a second in")
 		_ok(p.get_playback_position() > 0.1,
