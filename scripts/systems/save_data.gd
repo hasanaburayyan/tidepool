@@ -59,11 +59,11 @@ func record_clear(level_no: int, stars: int) -> void:
 
 
 func stars_for(level_no: int) -> int:
-	return int((_levels.get(level_no, {}) as Dictionary).get("stars", 0))
+	return _as_int((_levels.get(level_no, {}) as Dictionary).get("stars", 0), 0)
 
 
 func is_cleared(level_no: int) -> bool:
-	return bool((_levels.get(level_no, {}) as Dictionary).get("cleared", false))
+	return _as_bool((_levels.get(level_no, {}) as Dictionary).get("cleared", false), false)
 
 
 ## Finishing pool N unlocks pool N+1, and nothing is gated on star count -- a cozy game does
@@ -105,7 +105,7 @@ func reset_progress() -> void:
 # --- settings -------------------------------------------------------------------------
 
 func get_volume() -> float:
-	return clampf(float(_settings.get("volume", 1.0)), 0.0, 1.0)
+	return clampf(_as_float(_settings.get("volume", 1.0), 1.0), 0.0, 1.0)
 
 
 func set_volume(v: float) -> void:
@@ -113,7 +113,7 @@ func set_volume(v: float) -> void:
 
 
 func get_fullscreen() -> bool:
-	return bool(_settings.get("fullscreen", false))
+	return _as_bool(_settings.get("fullscreen", false), false)
 
 
 func set_fullscreen(on: bool) -> void:
@@ -136,11 +136,57 @@ func to_dict() -> Dictionary:
 	return {"version": VERSION, "levels": levels, "settings": _settings.duplicate()}
 
 
+# --- typed reads ----------------------------------------------------------------------
+#
+# JSON has no schema and this file lives in user://, so any field can hold any shape.
+# int() and float() on an Array or Dictionary are runtime ERRORS in GDScript, not
+# coercions, and bool() is the same. A raw int(entry["stars"]) therefore does not degrade
+# on a hand-edited file -- it aborts from_dict partway, drops every entry after it, and
+# then the next save_game() writes that truncated state back over the file. Losing a
+# player's progress to one bad field is the exact failure this layer exists to prevent,
+# so every read from the parsed dictionary goes through these. (Found by Nerite, TIDE-45.)
+
+
+static func _as_int(v: Variant, fallback: int) -> int:
+	match typeof(v):
+		TYPE_INT, TYPE_FLOAT, TYPE_BOOL:
+			return int(v)
+		TYPE_STRING, TYPE_STRING_NAME:
+			return int(str(v)) if str(v).is_valid_int() else fallback
+	return fallback
+
+
+static func _as_float(v: Variant, fallback: float) -> float:
+	match typeof(v):
+		TYPE_INT, TYPE_FLOAT, TYPE_BOOL:
+			return float(v)
+		TYPE_STRING, TYPE_STRING_NAME:
+			return float(str(v)) if str(v).is_valid_float() else fallback
+	return fallback
+
+
+static func _as_bool(v: Variant, fallback: bool) -> bool:
+	match typeof(v):
+		TYPE_BOOL, TYPE_INT, TYPE_FLOAT:
+			return bool(v)
+		TYPE_STRING, TYPE_STRING_NAME:
+			# Spelled out rather than bool(String), which is true for ANY non-empty string
+			# and so reads the hand-written "false" as true -- the opposite of the intent.
+			match str(v).strip_edges().to_lower():
+				"true", "1", "yes", "on":
+					return true
+				"false", "0", "no", "off", "":
+					return false
+	return fallback
+
+
 ## Replace this save's contents from a parsed dictionary. Every field is coerced and
 ## clamped rather than trusted: this file lives in user:// where a player can hand-edit it,
 ## and a bad value should cost that one entry, not the whole save.
 func from_dict(data: Dictionary) -> void:
-	loaded_version = int(data.get("version", 0))
+	# A version that is not a number is not a newer version -- it is a broken field, and
+	# treating it as newer would make the save read_only and lock the player out of saving.
+	loaded_version = _as_int(data.get("version", 0), 0)
 	read_only = loaded_version > VERSION
 
 	_levels.clear()
@@ -153,8 +199,8 @@ func from_dict(data: Dictionary) -> void:
 			var entry: Variant = (levels as Dictionary)[key]
 			if not (entry is Dictionary):
 				continue
-			var stars := clampi(int((entry as Dictionary).get("stars", 0)), 0, MAX_STARS)
-			var cleared := bool((entry as Dictionary).get("cleared", false))
+			var stars := clampi(_as_int((entry as Dictionary).get("stars", 0), 0), 0, MAX_STARS)
+			var cleared := _as_bool((entry as Dictionary).get("cleared", false), false)
 			# A level with stars but no cleared flag is a half-written or hand-edited entry;
 			# earning a star is only possible by finishing, so believe the stars.
 			if stars > 0:
@@ -167,9 +213,9 @@ func from_dict(data: Dictionary) -> void:
 	var settings: Variant = data.get("settings", {})
 	if settings is Dictionary:
 		if (settings as Dictionary).has("volume"):
-			set_volume(float((settings as Dictionary)["volume"]))
+			set_volume(_as_float((settings as Dictionary)["volume"], 1.0))
 		if (settings as Dictionary).has("fullscreen"):
-			set_fullscreen(bool((settings as Dictionary)["fullscreen"]))
+			set_fullscreen(_as_bool((settings as Dictionary)["fullscreen"], false))
 
 	_migrate()
 

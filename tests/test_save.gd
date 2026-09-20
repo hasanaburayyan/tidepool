@@ -72,6 +72,7 @@ func run() -> int:
 	_test_newer_version_not_clobbered()
 	_test_settings()
 	_test_hand_edited_file()
+	_test_wrong_types_cost_one_entry()
 	_test_write_is_atomic()
 
 	_cleanup()
@@ -265,6 +266,75 @@ func _test_hand_edited_file() -> void:
 	_eq(s.stars_for(6), 1, "the valid entries around the junk survive")
 	# "loud" is not a number; float() makes it 0.0 rather than crashing, and it clamps in range.
 	_check(s.get_volume() >= 0.0 and s.get_volume() <= 1.0, "a junk volume stays in range")
+
+
+## JSON is untyped and this file lives in user://, so any value can be any shape. int() and
+## float() on an Array or Dictionary are runtime ERRORS in GDScript, not coercions -- so
+## before the type guards, one wrong-typed value aborted from_dict partway, dropped every
+## entry after it, and the next save_game() wrote that truncated state back over the file.
+## Losing progress to a single bad field is exactly what this layer exists to prevent.
+## (Found by Nerite on TIDE-43.)
+func _test_wrong_types_cost_one_entry() -> void:
+	_suite("wrong types cost one entry")
+
+	# Each of these goes in as level 2's "stars", between two good entries. Level 3 is the
+	# canary: if it is missing, the load aborted rather than skipping one field.
+	var bad_stars := [[], {}, null, "three", true, {"n": 1}]
+	for bad in bad_stars:
+		var s = SaveDataScript.new(_temp_path())
+		s.from_dict({"version": 1, "levels": {
+			"1": {"stars": 3, "cleared": true},
+			"2": {"stars": bad, "cleared": true},
+			"3": {"stars": 2, "cleared": true},
+		}})
+		var what := "stars = %s" % JSON.stringify(bad)
+		_eq(s.stars_for(1), 3, "%s: the entry before it survives" % what)
+		_eq(s.stars_for(3), 2, "%s: the entry AFTER it survives" % what)
+		_check(s.is_cleared(2), "%s: the entry itself still loads as cleared" % what)
+
+	# cleared as a string, and the other scalars that reach a typed conversion.
+	for bad in [[], {}, "yes", "false", null, 1]:
+		var s = SaveDataScript.new(_temp_path())
+		s.from_dict({"version": 1, "levels": {
+			"1": {"stars": 1, "cleared": bad},
+			"2": {"stars": 2, "cleared": true},
+		}})
+		_eq(s.stars_for(2), 2, "cleared = %s: the next entry survives" % JSON.stringify(bad))
+
+	# version and volume as arrays: both reach int()/float() outside the level loop.
+	for bad in [[], {}, null, "abc"]:
+		var s = SaveDataScript.new(_temp_path())
+		s.from_dict({"version": bad, "levels": {"1": {"stars": 3, "cleared": true}},
+			"settings": {"volume": bad, "fullscreen": bad}})
+		var what := JSON.stringify(bad)
+		_eq(s.stars_for(1), 3, "version/volume = %s: levels still load" % what)
+		_check(s.get_volume() >= 0.0 and s.get_volume() <= 1.0,
+			"version/volume = %s: volume stays in range" % what)
+		_check(not s.read_only, "version = %s: an unreadable version is not a newer one" % what)
+
+	# The whole point: a file that hit a bad value must still be saveable without the good
+	# entries vanishing, because save_game() is what would make the loss permanent.
+	var path := _temp_path()
+	var a = SaveDataScript.new(path)
+	a.from_dict({"version": 1, "levels": {
+		"1": {"stars": 3, "cleared": true},
+		"2": {"stars": [], "cleared": true},
+		"3": {"stars": 2, "cleared": true},
+	}})
+	_check(a.save_game(), "a save that survived a bad field can be written")
+	var b = SaveDataScript.new(path)
+	b.load_game()
+	_eq(b.stars_for(1), 3, "level 1 survives the round trip")
+	_eq(b.stars_for(3), 2, "level 3 is not lost to level 2's bad field")
+
+	# A "levels" or "settings" block of entirely the wrong type is a shape error, already
+	# handled -- checked here so the two guards are not confused for each other later.
+	for bad in [[], "nope", 7, null]:
+		var s = SaveDataScript.new(_temp_path())
+		s.from_dict({"version": 1, "levels": bad, "settings": bad})
+		_eq(s.cleared_count(), 0, "levels = %s loads as empty, not as an error"
+			% JSON.stringify(bad))
+		_eq(s.get_volume(), 1.0, "settings = %s falls back to defaults" % JSON.stringify(bad))
 
 
 ## A crash midway through a write should cost the last save, not every star earned. The
