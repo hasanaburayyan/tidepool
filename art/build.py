@@ -18,6 +18,7 @@ import beachmap
 import critters
 import icon
 import tiles
+import wordmark
 from png import Canvas, hex_to_rgb
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -473,6 +474,45 @@ def build_refused_options(pal: dict, level: dict) -> Canvas:
     return out
 
 
+def assert_wordmark_reads(pal: dict) -> None:
+    """The title has to be readable as a word, which is a stricter test than a sprite gets.
+
+    Four claims. Every letter of "Tidepool" is drawn. No two letters touch - at 5px wide,
+    two letters sharing a column read as one shape and the name becomes a texture. Both
+    materials clear the sand they sit on by 60 luma, the bar the critters are held to, so
+    the word survives greyscale with no outline round its one-pixel strokes. And the
+    waterline is one height across the whole word: if a future glyph edit puts water at two
+    different rows, the letters stop looking like they are standing in the same pool.
+    """
+    cells = wordmark.body_cells()
+    drawn = set(cells.values())
+    for i, ch in enumerate(wordmark.WORD):
+        if i not in drawn:
+            raise SystemExit("FAIL wordmark: letter %d (%r) drew nothing" % (i, ch))
+
+    columns = {}
+    for (x, _), letter in cells.items():
+        columns.setdefault(x, set()).add(letter)
+    shared = sorted(x for x, owners in columns.items() if len(owners) > 1)
+    if shared:
+        raise SystemExit("FAIL wordmark: letters share column(s) %s - they would read as one shape" % shared)
+
+    sand = pal["rock_body"]
+    for role in ("outline", "channel_wet"):
+        step = abs(luma(pal[role]) - luma(sand))
+        if step < 60:
+            raise SystemExit("FAIL wordmark: %s is only %.0f luma off the sand behind it" % (role, step))
+
+    img = wordmark.render(pal)
+    wet_rows = {y for (x, y) in cells if img[x, y][:3] == pal["channel_wet"]}
+    if wet_rows != set(range(wordmark.WATERLINE, wordmark.HEIGHT)) & {y for (_, y) in cells}:
+        raise SystemExit("FAIL wordmark: water is not one level line - rows %s" % sorted(wet_rows))
+    print("  ok   %d letters, none touching, %d x %d px, water level at row %d"
+          % (len(drawn), img.width, img.height, wordmark.WATERLINE))
+    print("  ok   ink %.0f and water %.0f luma clear of the sand behind the title"
+          % (abs(luma(pal["outline"]) - luma(sand)), abs(luma(pal["channel_wet"]) - luma(sand))))
+
+
 def build_strip(pal: dict) -> Canvas:
     """Two connected tiles and one that is not, in one image.
 
@@ -587,6 +627,17 @@ def main() -> None:
     sheet = build_family_sheet(pal)
     scaled(sheet, 3).save(os.path.join(PREVIEW_OUT, "tiles_3x.png"))
     scaled(greyscale(sheet), 3).save(os.path.join(PREVIEW_OUT, "tiles_3x_greyscale.png"))
+
+    # Before the level previews on purpose: everything below this line needs the rules
+    # snapshot, and the title lettering has nothing to do with levels. A stale snapshot
+    # should not stop the build from checking art that cannot have gone stale.
+    print("\nthe title lettering (replaces the fallback-font placeholder in title_screen.gd):")
+    assert_wordmark_reads(pal)
+    written.append(wordmark.write(pal, ROOT))
+    sand = Canvas(wordmark.width() + 4, wordmark.HEIGHT + 4, pal["rock_body"])
+    sand.over(wordmark.render(pal), 2, 2)
+    scaled(sand, 8).save(os.path.join(PREVIEW_OUT, "wordmark_8x.png"))
+    scaled(greyscale(sand), 8).save(os.path.join(PREVIEW_OUT, "wordmark_8x_greyscale.png"))
 
     print("\nthe one-way arrow:")
     rules = load_rules()

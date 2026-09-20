@@ -8522,6 +8522,1101 @@
     39
    ],
    "width": 7
+  },
+  {
+   "height": 4,
+   "id": 25,
+   "name": "Still Pool",
+   "par": 1,
+   "refusing_at_start": [],
+   "refusing_when_solved": [],
+   "tide": 7,
+   "tiles_at_start": [
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "es"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "sw"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "ns"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "e"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "new"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "ew"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "w"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    }
+   ],
+   "tiles_when_solved": [
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "es"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "sw"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "ns"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "e"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "new"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "ew"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "w"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    }
+   ],
+   "wet_at_start": [
+    1,
+    2,
+    3,
+    6,
+    10,
+    11,
+    12,
+    13
+   ],
+   "wet_when_solved": [
+    1,
+    2,
+    3,
+    6,
+    8,
+    10,
+    11,
+    12,
+    13,
+    14
+   ],
+   "width": 5
+  },
+  {
+   "height": 4,
+   "id": 26,
+   "name": "Two Streams",
+   "par": 9,
+   "refusing_at_start": [],
+   "refusing_when_solved": [],
+   "tide": 15,
+   "tiles_at_start": [
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "nw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "es"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "e"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "esw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "w"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    }
+   ],
+   "tiles_when_solved": [
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "es"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "sw"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "e"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "new"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "w"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    }
+   ],
+   "wet_at_start": [
+    12,
+    13
+   ],
+   "wet_when_solved": [
+    1,
+    2,
+    3,
+    7,
+    9,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17
+   ],
+   "width": 6
+  },
+  {
+   "height": 4,
+   "id": 27,
+   "name": "Cascade",
+   "par": 11,
+   "refusing_at_start": [],
+   "refusing_when_solved": [],
+   "tide": 17,
+   "tiles_at_start": [
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ne"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ne"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "e"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "w"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "sw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "sw"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    }
+   ],
+   "tiles_when_solved": [
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "es"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "sw"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "e"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "w"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ne"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "nw"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    }
+   ],
+   "wet_at_start": [
+    14,
+    15
+   ],
+   "wet_when_solved": [
+    1,
+    2,
+    3,
+    8,
+    10,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    24,
+    25,
+    26
+   ],
+   "width": 7
+  },
+  {
+   "height": 4,
+   "id": 28,
+   "name": "Held Back",
+   "par": 10,
+   "refusing_at_start": [],
+   "refusing_when_solved": [],
+   "tide": 16,
+   "tiles_at_start": [
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ne"
+    },
+    {
+     "kind": "oneway",
+     "locked": false,
+     "out": "w",
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "es"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "e"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "esw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "w"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    }
+   ],
+   "tiles_when_solved": [
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "es"
+    },
+    {
+     "kind": "oneway",
+     "locked": false,
+     "out": "e",
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "sw"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ns"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "e"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "new"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "basin",
+     "locked": true,
+     "sides": "nesw"
+    },
+    {
+     "kind": "channel",
+     "locked": false,
+     "sides": "ew"
+    },
+    {
+     "kind": "channel",
+     "locked": true,
+     "sides": "w"
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    },
+    {
+     "kind": "empty",
+     "locked": false,
+     "sides": ""
+    }
+   ],
+   "wet_at_start": [
+    12,
+    13
+   ],
+   "wet_when_solved": [
+    1,
+    2,
+    3,
+    7,
+    9,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17
+   ],
+   "width": 6
   }
  ],
  "source_hashes": {
@@ -8548,7 +9643,11 @@
   "21.tide": "d78037e0823f68c0f8f2051a2d4d512bbbf4ea6fb0bcda6e585ffcb5ebe9c6c8",
   "22.tide": "e95698b391ca32f2f6d8669af28f85e802523435cab8fbfde9bee04a30cb48c9",
   "23.tide": "b7fc77a84f1ce9575bfe441b19c6a9417be1c5643bc1b1855f395a2a17155c05",
-  "24.tide": "4b33b2148cfaedfa800057eac54dc380d1052061ace9b4c343f7ed11393e6d1e"
+  "24.tide": "4b33b2148cfaedfa800057eac54dc380d1052061ace9b4c343f7ed11393e6d1e",
+  "25.tide": "679c1117dc3584bf3c462560b896eafb323e3d618fb11a46043fb62768f34525",
+  "26.tide": "f38763da1ffbb0f9b4cd42cea3f941458beda578d1f45d00eddbbc802711c7a3",
+  "27.tide": "81a37a3f077cbb0028730a46a61b3e3e2a958b22db20df8e7a80a33d85afd50c",
+  "28.tide": "593f08b70672d8401e8e3cda0b32590f1709005e01d60f8f75aedfc15450b600"
  },
  "stars": {
   "three_at_or_under": "par",

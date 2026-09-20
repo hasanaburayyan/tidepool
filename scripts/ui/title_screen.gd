@@ -7,9 +7,10 @@ extends Node2D
 ## on. Any click or key begins -- which is what a cozy game wants anyway, and needs no
 ## instruction once the pool is visibly waiting for you.
 ##
-## The lettering is placeholder, drawn with the fallback font, exactly as board.gd drew
-## placeholder tiles before Cove's art landed. It is the obvious thing to replace with a
-## real logo and the game reads fine until then.
+## The lettering is a sprite now: `assets/ui/title_wordmark.png`, eight hand-set 5x9 pixel
+## letters from `art/wordmark.py`, half-submerged in Tidewater. The fallback-font string it
+## replaces is kept as the fallback path below, for the same reason the beach and the pool
+## have one - a missing texture should cost the screen its art, not its name.
 
 signal play_requested()
 
@@ -31,6 +32,16 @@ const ART_DIR := "res://assets/map"
 const TITLE := "Tidepool"
 const TITLE_SIZE := 72
 
+## The wordmark sprite and its integer blow-up. x8 turns the 43x9 sprite into 344x72, which
+## is the height the placeholder font had, so nothing else on the screen moves. Integer, or
+## the letters get half-pixels and the crispness the whole art style is built on is gone.
+const WORDMARK_PATH := "res://assets/ui/title_wordmark.png"
+const WORDMARK_SCALE := 8
+
+## Top of the lettering. The placeholder sat on a baseline at y=200 with a 72px font; this
+## is the same block of sand, addressed by its top edge instead.
+const TITLE_TOP := 140.0
+
 ## Deep Umber, the same ink the pool numbers use.
 const INK := Color("3a2f26")
 
@@ -48,10 +59,12 @@ const BREATH_PIXELS := 3.0
 
 var _beach: Texture2D
 var _pool: Texture2D
+var _wordmark: Texture2D
 var _t := 0.0
 
 
 func _ready() -> void:
+	_wordmark = load(WORDMARK_PATH) if ResourceLoader.exists(WORDMARK_PATH) else null
 	_beach = _load("beach")
 	# The unplayed pool, not the finished one: the title screen is the game before you have
 	# done anything to it.
@@ -96,9 +109,7 @@ func _draw() -> void:
 		draw_texture(_beach, Vector2.ZERO)
 
 	# Sitting high on the dry sand, where the art has nothing else going on.
-	var width := _font.get_string_size(TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE).x
-	draw_string(_font, Vector2((size.x - width) * 0.5, 200), TITLE,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, INK)
+	_draw_title(size)
 
 	if _pool != null:
 		# Breathing on a sine: the tide coming in and out, and the only thing on this
@@ -108,6 +119,20 @@ func _draw() -> void:
 		draw_texture(_pool, pos.round())
 
 	_draw_settings_glyph()
+
+
+## The name. The sprite when it is there, the fallback font when it is not.
+func _draw_title(size: Vector2) -> void:
+	if _wordmark != null:
+		var block := Vector2(_wordmark.get_size()) * WORDMARK_SCALE
+		# Rounded, so the blow-up lands on whole pixels even if the screen width ever
+		# stops being an even multiple of the sprite's.
+		var at := Vector2((size.x - block.x) * 0.5, TITLE_TOP).round()
+		draw_texture_rect(_wordmark, Rect2(at, block), false)
+		return
+	var width := _font.get_string_size(TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE).x
+	draw_string(_font, Vector2((size.x - width) * 0.5, 200), TITLE,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, INK)
 
 
 ## Drawn twice: an ink copy offset by a pixel as a rim, then the sand glyph on top. Same
