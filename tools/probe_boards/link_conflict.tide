@@ -1,0 +1,17 @@
+# PROBE BOARD, not a shipping level. The two tees want DIFFERENT rotations.
+# links: r1c1+r1c3
+id: 902
+name: Probe - Linked Conflict
+size: 5x3
+par: 2
+tide: 8
+source: r1c0
+grid:
+  .. .. .. e2 ..
+  e1 T3 i1 T3 ..
+  .. e0 .. .. ..
+critters:
+  r2c1 anemone
+  r0c3 starfish
+solution:
+  r1c1 cw2
