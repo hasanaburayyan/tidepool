@@ -15,6 +15,10 @@ extends Node2D
 
 signal closed()
 
+## Emitted on any control in the panel, so the shell can click without the panel owning a
+## player of its own.
+signal clicked()
+
 const SAND := Color("d9bf8f")
 const PANEL := Color("e8d5ad")
 const INK := Color("3a2f26")
@@ -85,13 +89,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	# The speaker glyph is mute: the only way to reach zero, since the leftmost drop is one
 	# step and not silence.
 	if _speaker.has_point(point):
+		clicked.emit()
 		_set_volume(0.0)
 		return
 	for i in _drops.size():
 		if _drops[i].has_point(point):
+			clicked.emit()
 			_set_volume(float(i + 1) / float(STEPS))
 			return
 	if _screen.has_point(point):
+		clicked.emit()
 		_set_fullscreen(not save.get_fullscreen())
 		return
 
