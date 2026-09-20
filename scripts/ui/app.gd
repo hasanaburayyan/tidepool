@@ -11,14 +11,25 @@ extends Node2D
 ## hands control back here instead of walking on to the next level, and Escape backs out
 ## to the map instead of quitting. With the flag off, main.tscn is unchanged.
 
+const TITLE_SCENE := preload("res://scenes/title.tscn")
 const MAP_SCENE := preload("res://scenes/map.tscn")
 const LEVEL_SCENE := preload("res://scenes/main.tscn")
 const SaveDataScript := preload("res://scripts/systems/save_data.gd")
+
+## Emitted just before the game closes. Exists so the last link of the Escape chain is
+## testable: tools/shell_test.gd watches this instead of actually being terminated.
+signal quit_requested()
 
 ## Injectable so tools/shell_test.gd can drive the whole shell against a temp save file
 ## without touching the player's real one.
 var save: RefCounted
 
+## Cleared by tools/shell_test.gd only. Escape on the title has to really end the game, and
+## an assertion that ends the test process cannot report what it found -- so the suite turns
+## the actual quit off and asserts on `quit_requested` instead. Always true in the game.
+var quit_on_escape := true
+
+var _title: Node = null
 var _map: Node = null
 var _level: Node = null
 
@@ -28,7 +39,7 @@ func _ready() -> void:
 		save = SaveDataScript.new()
 		save.load_game()
 	_apply_settings()
-	show_map()
+	show_title()
 
 
 ## Settings are applied on entry rather than only when changed, so a save carried from
@@ -48,10 +59,23 @@ func _set_active(node: Node, active: bool) -> void:
 	node.set_process_unhandled_input(active)
 
 
+func show_title() -> void:
+	if _level != null:
+		_level.queue_free()
+		_level = null
+	if _title == null:
+		_title = TITLE_SCENE.instantiate()
+		_title.play_requested.connect(show_map)
+		add_child(_title)
+	_set_active(_title, true)
+	_set_active(_map, false)
+
+
 func show_map() -> void:
 	if _level != null:
 		_level.queue_free()
 		_level = null
+	_set_active(_title, false)
 	if _map == null:
 		_map = MAP_SCENE.instantiate()
 		_map.save = save
@@ -95,11 +119,17 @@ func _on_level_cleared(level_no: int, stars: int, _moves: int) -> void:
 	save.save_game()
 
 
+## Escape walks back out one screen at a time: pool -> map -> title -> quit. Inside a pool
+## the board handles it and hands back here, so this only ever sees the map and the title.
 func _unhandled_input(event: InputEvent) -> void:
-	# Escape on the map quits; inside a pool the board handles it and backs out here. Once
-	# there is a title screen this becomes "back to title" instead.
 	if _level != null:
 		return
-	if event is InputEventKey and event.pressed and not event.echo \
-			and event.keycode == KEY_ESCAPE:
+	if not (event is InputEventKey and event.pressed and not event.echo
+			and event.keycode == KEY_ESCAPE):
+		return
+	if _map != null and _map.visible:
+		show_title()
+		return
+	quit_requested.emit()
+	if quit_on_escape:
 		get_tree().quit()

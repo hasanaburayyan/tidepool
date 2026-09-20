@@ -68,13 +68,40 @@ func _initialize() -> void:
 
 	var app: Node = load("res://scenes/app.tscn").instantiate()
 	app.save = save
+	# Escape on the title really does end the game, which would kill this suite mid-run and
+	# leave it unable to report anything. The shell emits quit_requested either way, so the
+	# assertion watches that and the actual quit is suppressed here and only here.
+	app.quit_on_escape = false
+	var quits := [0]
+	app.quit_requested.connect(func(): quits[0] += 1)
 	root.add_child(app)
 	for _i in 10:
 		await process_frame
 
-	# --- the map opens on a fresh save -------------------------------------------------
-	_ok(app._map != null, "the shell opens on the map")
+	# --- the title screen comes first ---------------------------------------------------
+	_ok(app._title != null and app._title.visible, "the shell opens on the title screen")
+	_ok(app._map == null or not app._map.visible, "the map is not showing yet")
 	_ok(app._level == null, "no pool is open yet")
+
+	# --- Escape on the title leaves, it does not begin (Nerite, TIDE-49) -----------------
+	# "Any key starts" swallowed Escape here, so the Escape chain lost its last link and the
+	# only way out of the game was the window close button. I had asserted the whole chain
+	# "pool -> map -> title -> quit" while only testing two of its three links; this is the
+	# third, and it is checked BEFORE anything else so a later screen cannot mask it.
+	await _key(KEY_ESCAPE)
+	_ok(app._map == null or not app._map.visible, "Escape on the title does NOT start the game")
+	_ok(app._title.visible, "the title is still showing after Escape")
+	_eq(quits[0], 1, "Escape on the title asks to quit")
+
+	# Any click begins. Deliberately clicked on pool 1's centre: the title is dismissed by
+	# this very click, so if it is not marked handled the event carries through to the map
+	# underneath and opens a pool immediately.
+	await _click_at(_centre(1))
+	_ok(app._map != null and app._map.visible, "a click on the title opens the map")
+	_ok(not app._title.visible, "the title screen is put away")
+	_ok(app._level == null, "the click that left the title did NOT fall through into a pool")
+
+	# --- the map on a fresh save ---------------------------------------------------------
 	_eq(app._map.state_of(1), "open", "pool 1 is open on a fresh save")
 	_eq(app._map.state_of(2), "locked", "pool 2 is locked on a fresh save")
 
@@ -154,6 +181,20 @@ func _initialize() -> void:
 	# Escape backs out rather than quitting the game.
 	await _key(KEY_ESCAPE)
 	_ok(app._level == null, "Escape inside a pool returns to the map")
+	_ok(app._map.visible, "and the map is what is showing")
+
+	# ...and again from the map back to the title, one screen at a time. If Escape ever
+	# reached the quit branch with the map still up, the process would end here and the
+	# remaining checks would simply never print.
+	await _key(KEY_ESCAPE)
+	_ok(app._title.visible, "Escape on the map returns to the title screen")
+	_ok(not app._map.visible, "and the map is put away")
+
+	# The last link, walked rather than assumed: from the title the next Escape ends the
+	# game. Together with the two above, that is the whole chain actually exercised.
+	await _key(KEY_ESCAPE)
+	_eq(quits[0], 2, "Escape from the title again asks to quit -- the chain really ends in quit")
+	_ok(app._map == null or not app._map.visible, "and it did not bounce back into the map")
 
 	# --- restart persistence (Nerite's check) --------------------------------------------
 	# Save twice over an existing file, then read it back cold: this is the DirAccess.rename
@@ -181,7 +222,7 @@ func _initialize() -> void:
 
 	print("")
 	if failures == 0:
-		print("shell: map -> pool -> clear -> map, 0 FAILED")
+		print("shell: title -> map -> pool -> clear -> map -> title, 0 FAILED")
 	else:
 		print("shell: %d FAILED" % failures)
 	quit(1 if failures > 0 else 0)

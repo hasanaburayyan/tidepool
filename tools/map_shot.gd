@@ -34,6 +34,18 @@ func _initialize() -> void:
 		if parts.size() == 2:
 			save.record_clear(int(parts[0]), int(parts[1]))
 
+	# The title screen has no save state to vary, so it is a fourth argument rather than a
+	# tool of its own: same window, same capture, one place that knows how to take a shot.
+	if argv.size() > 3 and String(argv[3]) == "title":
+		var title: Node = load("res://scenes/title.tscn").instantiate()
+		root.add_child(title)
+		for _i in 20:
+			await process_frame
+		DirAccess.make_dir_recursive_absolute(out.get_base_dir())
+		print("title -> %s : %s" % [out, error_string(root.get_texture().get_image().save_png(out))])
+		quit(0)
+		return
+
 	var scene: Node = load("res://scenes/map.tscn").instantiate()
 	scene.save = save
 	root.add_child(scene)
