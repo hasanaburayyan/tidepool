@@ -23,14 +23,17 @@ const DIM := Color(0.15, 0.12, 0.10, 0.55)
 
 const STEPS := 5
 
-## The panel, centred in the 960x640 viewport.
-const PANEL_RECT := Rect2(280, 200, 400, 240)
+## Sat at y=200 and cut the wordmark through the middle, which made the title read as
+## damaged (Maren). Dropped clear of it: "Tidepool" is drawn on a baseline at y=200, so
+## anything above ~y=220 collides with the descenders.
+const PANEL_RECT := Rect2(280, 250, 400, 240)
 
 var save: RefCounted
 
 var _drops: Array[Rect2] = []
 var _speaker := Rect2()
 var _screen := Rect2()
+var _close := Rect2()
 
 
 func _ready() -> void:
@@ -43,6 +46,10 @@ func _layout() -> void:
 	for i in STEPS:
 		_drops.append(Rect2(PANEL_RECT.position + Vector2(110 + i * 52, 64), Vector2(36, 32)))
 	_screen = Rect2(PANEL_RECT.position + Vector2(40, 150), Vector2(56, 44))
+	# The same glyph that opened the panel, top-right, closes it. Maren: the way out has to
+	# be visible, not just Escape -- "both, not either". Reusing the opening glyph means the
+	# player is clicking the thing they already associate with this screen.
+	_close = Rect2(PANEL_RECT.end - Vector2(56, 232), Vector2(40, 40))
 
 
 # --- input ----------------------------------------------------------------------------
@@ -50,7 +57,7 @@ func _layout() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo \
 			and event.keycode == KEY_ESCAPE:
-		_close()
+		_close_panel()
 		return
 	if not (event is InputEventMouseButton and event.pressed):
 		return
@@ -58,6 +65,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	var point: Vector2 = event.position
+
+	if _close.has_point(point):
+		_close_panel()
+		return
 
 	# The speaker glyph is mute: the only way to reach zero, since the leftmost drop is one
 	# step and not silence.
@@ -75,10 +86,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	# A click anywhere off the panel closes it -- the usual way out of a dialog, and it
 	# needs no button to say so.
 	if not PANEL_RECT.has_point(point):
-		_close()
+		_close_panel()
 
 
-func _close() -> void:
+func _close_panel() -> void:
 	closed.emit()
 	# Consumed for the same reason every other screen here consumes its dismissing event:
 	# this node stops taking input as a direct result of it, so otherwise the same click or
@@ -138,6 +149,7 @@ func _draw() -> void:
 		_draw_drop(_drops[i], i < filled)
 
 	_draw_screen_glyph(_screen, save.get_fullscreen())
+	draw_glyph(self, _close, INK)
 
 
 ## A speaker: a box and a cone. Crossed out when muted, which is the one convention strong
@@ -158,12 +170,13 @@ func _draw_speaker(rect: Rect2, muted: bool) -> void:
 ## One unit of volume. Filled is water, empty is an outline -- the same filled/outlined
 ## vocabulary the map's shells use, so the two screens read the same way.
 func _draw_drop(rect: Rect2, filled: bool) -> void:
+	# Earned = filled with water. Unearned = still there, still the same shape, outlined in
+	# Deep Umber -- NEVER a gap. Exactly the shells vocabulary (Maren): if the empty steps
+	# vanished, the player would be measuring a bar's length again instead of counting five
+	# objects, which is the whole reason this is not a slider.
 	if filled:
 		draw_rect(rect, WATER)
-		draw_rect(rect, INK, false, 2.0)
-	else:
-		draw_rect(rect, SAND)
-		draw_rect(rect, INK, false, 2.0)
+	draw_rect(rect, INK, false, 2.0)
 
 
 ## A screen. Filled means fullscreen; the small inset rectangle means windowed, which is
@@ -173,3 +186,14 @@ func _draw_screen_glyph(rect: Rect2, on: bool) -> void:
 	draw_rect(rect, INK, false, 2.0)
 	if not on:
 		draw_rect(Rect2(rect.position + Vector2(10, 8), rect.size - Vector2(20, 16)), INK, false, 2.0)
+
+
+## The settings glyph: three slider rows with the knob in a different place on each, which
+## is what makes it read as "settings" rather than as a menu icon. Shared with the title
+## screen so the thing that opens the panel and the thing that closes it are the same shape.
+## Placeholder; a real icon is one sprite from Cove and the hit target does not move.
+static func draw_glyph(canvas: CanvasItem, r: Rect2, colour: Color) -> void:
+	for i in 3:
+		var y := r.position.y + 12 + i * 10
+		canvas.draw_line(Vector2(r.position.x + 6, y), Vector2(r.end.x - 6, y), colour, 2.0)
+		canvas.draw_rect(Rect2(r.position.x + 10 + i * 9, y - 4, 6, 8), colour)

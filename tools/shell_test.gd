@@ -116,6 +116,19 @@ func _initialize() -> void:
 		vol_on_disk.load_game()
 		_eq(vol_on_disk.get_volume(), 1.0, "the volume is already on disk before closing")
 
+		# The close glyph, top-right of the panel: Maren asked for a visible way out as well
+		# as Escape, "both, not either". Untested it would be exactly the kind of control
+		# that looks present and does nothing.
+		await _click_at(panel._close.get_center())
+		_ok(app._settings == null, "the close glyph closes settings")
+		_ok(app._map == null or not app._map.visible,
+			"and the closing click does NOT fall through and start the game")
+		_eq(quits[0], 1, "and it did not ask to quit")
+
+		# Reopen, so the Escape path below is still exercised from an open panel.
+		await _click_at(app._title.SETTINGS_RECT.get_center())
+		_ok(app._settings != null, "settings reopens after being closed by the glyph")
+
 	# Escape closes settings and lands back on the title -- it must not fall through and
 	# begin the game, and it must not quit.
 	await _key(KEY_ESCAPE)

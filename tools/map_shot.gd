@@ -42,6 +42,12 @@ func _initialize() -> void:
 		# Settings is drawn OVER the title, so the shot shows the layer as the player sees
 		# it rather than a panel floating on nothing.
 		if String(argv[3]) == "settings":
+			# In settings mode the `cleared` argument doubles as the volume step (0-5) and
+			# `overrides` carrying "fs" shows the fullscreen state. Only the SAVED value is
+			# set, never apply_fullscreen() -- a screenshot tool must not actually switch the
+			# window, or the capture is of a different viewport than the one being documented.
+			save.set_volume(clampf(float(cleared) / 5.0, 0.0, 1.0))
+			save.set_fullscreen(overrides.contains("fs"))
 			var panel: Node = load("res://scenes/settings.tscn").instantiate()
 			panel.save = save
 			root.add_child(panel)
