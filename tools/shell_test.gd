@@ -72,9 +72,20 @@ func _initialize() -> void:
 	for _i in 10:
 		await process_frame
 
-	# --- the map opens on a fresh save -------------------------------------------------
-	_ok(app._map != null, "the shell opens on the map")
+	# --- the title screen comes first ---------------------------------------------------
+	_ok(app._title != null and app._title.visible, "the shell opens on the title screen")
+	_ok(app._map == null or not app._map.visible, "the map is not showing yet")
 	_ok(app._level == null, "no pool is open yet")
+
+	# Any click begins. Deliberately clicked on pool 1's centre: the title is dismissed by
+	# this very click, so if it is not marked handled the event carries through to the map
+	# underneath and opens a pool immediately.
+	await _click_at(_centre(1))
+	_ok(app._map != null and app._map.visible, "a click on the title opens the map")
+	_ok(not app._title.visible, "the title screen is put away")
+	_ok(app._level == null, "the click that left the title did NOT fall through into a pool")
+
+	# --- the map on a fresh save ---------------------------------------------------------
 	_eq(app._map.state_of(1), "open", "pool 1 is open on a fresh save")
 	_eq(app._map.state_of(2), "locked", "pool 2 is locked on a fresh save")
 
@@ -144,6 +155,14 @@ func _initialize() -> void:
 	# Escape backs out rather than quitting the game.
 	await _key(KEY_ESCAPE)
 	_ok(app._level == null, "Escape inside a pool returns to the map")
+	_ok(app._map.visible, "and the map is what is showing")
+
+	# ...and again from the map back to the title, one screen at a time. If Escape ever
+	# reached the quit branch with the map still up, the process would end here and the
+	# remaining checks would simply never print.
+	await _key(KEY_ESCAPE)
+	_ok(app._title.visible, "Escape on the map returns to the title screen")
+	_ok(not app._map.visible, "and the map is put away")
 
 	# --- restart persistence (Nerite's check) --------------------------------------------
 	# Save twice over an existing file, then read it back cold: this is the DirAccess.rename
@@ -161,7 +180,7 @@ func _initialize() -> void:
 
 	print("")
 	if failures == 0:
-		print("shell: map -> pool -> clear -> map, 0 FAILED")
+		print("shell: title -> map -> pool -> clear -> map -> title, 0 FAILED")
 	else:
 		print("shell: %d FAILED" % failures)
 	quit(1 if failures > 0 else 0)
