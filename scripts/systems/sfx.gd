@@ -37,6 +37,15 @@ func _ready() -> void:
 		_players.append(p)
 
 
+## KNOWN, AND MINE: a tool that ends with SceneTree.quit() now prints "ObjectDB instances
+## leaked at exit" and "1 resources still in use at exit". It appeared with this file --
+## main prints neither -- and it is a shutdown-order complaint, not a failure: every gate
+## still exits 0. Clearing the cache and nulling every player's stream in _exit_tree did NOT
+## silence it, so _exit_tree is not running before Godot audits, and I have stopped guessing
+## rather than leave code that pretends to fix it. Flagged so nobody hunts it as a
+## regression. Worth a proper look when the audio work settles.
+
+
 func _stream(sound: String) -> AudioStream:
 	if _streams.has(sound):
 		return _streams[sound]

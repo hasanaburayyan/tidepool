@@ -17,6 +17,7 @@ signal level_chosen(level_no: int)
 signal settings_requested()
 
 const SaveDataScript := preload("res://scripts/systems/save_data.gd")
+const SfxScript := preload("res://scripts/systems/sfx.gd")
 const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const SETTINGS_RECT := SettingsPanel.SETTINGS_RECT
 
@@ -47,6 +48,10 @@ const RIPPLE_RADIUS := 46.0
 
 var save: RefCounted
 
+## The same thunk the board plays for a barnacled tile. Tern's call: a locked POOL and a
+## locked TILE are the same refusal in the same vocabulary, so they say the same thing.
+var _sfx: Node = null
+
 var _art: Dictionary = {}
 var _hover := 0
 var _shake_level := 0
@@ -65,6 +70,8 @@ var _celebrate_shells := true
 
 
 func _ready() -> void:
+	_sfx = SfxScript.new()
+	add_child(_sfx)
 	_load_art()
 	if save == null:
 		save = SaveDataScript.new()
