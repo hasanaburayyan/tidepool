@@ -18,6 +18,12 @@ signal level_cleared(level_no: int, stars: int, moves: int)
 ## Escape. Only ever fires in shell mode; see `shell_mode`.
 signal exit_requested()
 
+## The top-right settings glyph, the same one the title and the map carry. Maren's reason
+## for putting it in a pool too: what a player wants mid-level is the volume, and this gives
+## it to them without leaving the pool. Only drawn and only clickable in shell mode, so the
+## bare main.tscn that click_test/load_check/shot load is completely unchanged.
+signal settings_requested()
+
 ## Off by default, and that default is load-bearing. Standalone `scenes/main.tscn` is what
 ## tools/click_test.gd, tools/load_check.gd and tools/shot.gd load, and they expect today's
 ## behaviour: clearing a pool walks straight on to the next one and Escape quits. The app
@@ -28,6 +34,8 @@ var shell_mode := false
 ## 64, not 72, so Cove's 32 px sprites land at exactly 2x. Pixel art at a fractional
 ## scale under a Nearest filter drops and doubles rows of pixels; 2x is the whole point.
 ## The largest board we ship is 7x6, so 7*64 + margins still fits the 960x640 viewport.
+const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
+
 const TILE_SIZE := 64
 const MARGIN := Vector2(40, 108)
 const LEVEL_DIR := "res://levels"
@@ -344,6 +352,12 @@ func _unhandled_input(event: InputEvent) -> void:
 					_hand_back()
 				else:
 					get_tree().quit()
+		return
+
+	if shell_mode and event is InputEventMouseButton and event.pressed \
+			and SettingsPanel.SETTINGS_RECT.has_point(event.position):
+		settings_requested.emit()
+		get_viewport().set_input_as_handled()
 		return
 
 	if event is InputEventMouseMotion:
@@ -690,3 +704,9 @@ func _draw_hud() -> void:
 		status = "left-click turns, right-click turns back   -   Reset Pool is free, " \
 			+ ("Esc back to the map" if shell_mode else "N/P level, Esc quit")
 	draw_string(_font, Vector2(MARGIN.x, board_bottom + 32), status, 0, -1, 17, TEXT)
+
+	# Shell mode only: the bare board has no shell to open settings in.
+	if shell_mode:
+		var r: Rect2 = SettingsPanel.SETTINGS_RECT
+		SettingsPanel.draw_glyph(self, Rect2(r.position + Vector2.ONE, r.size), TEXT)
+		SettingsPanel.draw_glyph(self, r, SAND)

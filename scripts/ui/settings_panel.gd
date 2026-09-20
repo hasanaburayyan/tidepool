@@ -28,12 +28,17 @@ const STEPS := 5
 ## anything above ~y=220 collides with the descenders.
 const PANEL_RECT := Rect2(280, 250, 400, 240)
 
+## The settings glyph, TOP-RIGHT, on every screen (Maren). Bottom-right was only free on
+## the title -- on the map that corner is pools 25-28. One corner everywhere beats the best
+## corner on one screen. The panel deliberately does not cover it, so the glyph stays
+## visible through the dim and clicking it again is what closes the panel.
+const SETTINGS_RECT := Rect2(884, 20, 44, 44)
+
 var save: RefCounted
 
 var _drops: Array[Rect2] = []
 var _speaker := Rect2()
 var _screen := Rect2()
-var _close := Rect2()
 
 
 func _ready() -> void:
@@ -46,10 +51,6 @@ func _layout() -> void:
 	for i in STEPS:
 		_drops.append(Rect2(PANEL_RECT.position + Vector2(110 + i * 52, 64), Vector2(36, 32)))
 	_screen = Rect2(PANEL_RECT.position + Vector2(40, 150), Vector2(56, 44))
-	# The same glyph that opened the panel, top-right, closes it. Maren: the way out has to
-	# be visible, not just Escape -- "both, not either". Reusing the opening glyph means the
-	# player is clicking the thing they already associate with this screen.
-	_close = Rect2(PANEL_RECT.end - Vector2(56, 232), Vector2(40, 40))
 
 
 # --- input ----------------------------------------------------------------------------
@@ -66,7 +67,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	var point: Vector2 = event.position
 
-	if _close.has_point(point):
+	# The screen's own top-right glyph, still visible through the dim, closes the panel. A
+	# second glyph inside the panel would just be the same control drawn twice (Maren).
+	if SETTINGS_RECT.has_point(point):
 		_close_panel()
 		return
 
@@ -149,7 +152,6 @@ func _draw() -> void:
 		_draw_drop(_drops[i], i < filled)
 
 	_draw_screen_glyph(_screen, save.get_fullscreen())
-	draw_glyph(self, _close, INK)
 
 
 ## A speaker: a box and a cone. Crossed out when muted, which is the one convention strong
@@ -179,13 +181,20 @@ func _draw_drop(rect: Rect2, filled: bool) -> void:
 	draw_rect(rect, INK, false, 2.0)
 
 
-## A screen. Filled means fullscreen; the small inset rectangle means windowed, which is
-## literally what the two states look like.
+## A screen, in two states. THE FRAME STAYS IN BOTH (Maren): dropping it for fullscreen
+## turned the glyph into a solid teal block that no longer depicted a screen and read, at a
+## glance, as a stray sixth volume drop that had wandered down a row. Only the inside
+## changes -- an inset rectangle is windowed, filled to the frame's inner edge is
+## fullscreen. Same object, two states, and the frame is what stops it colliding with the
+## drops. Teal still means active, consistently with them.
 func _draw_screen_glyph(rect: Rect2, on: bool) -> void:
-	draw_rect(rect, WATER if on else SAND)
+	draw_rect(rect, SAND)
+	var inner := Rect2(rect.position + Vector2(6, 6), rect.size - Vector2(12, 12))
+	if on:
+		draw_rect(inner, WATER)
+	else:
+		draw_rect(Rect2(rect.position + Vector2(12, 11), rect.size - Vector2(24, 22)), WATER)
 	draw_rect(rect, INK, false, 2.0)
-	if not on:
-		draw_rect(Rect2(rect.position + Vector2(10, 8), rect.size - Vector2(20, 16)), INK, false, 2.0)
 
 
 ## The settings glyph: three slider rows with the knob in a different place on each, which
