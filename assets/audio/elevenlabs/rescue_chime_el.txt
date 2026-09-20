@@ -1,0 +1,6 @@
+prompt: Short bright cheerful bubbly two-note rising chime with tiny water bubble, soft glassy bell, gentle, cozy game rescue sound, no music
+model: eleven_text_to_sound_v2
+duration_seconds: 1.5
+loop: False
+date: 2026-09-20
+decision: #16
