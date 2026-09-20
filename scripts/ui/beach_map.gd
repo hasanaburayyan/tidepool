@@ -139,6 +139,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if level == 0:
 		return
 	if state_of(level) == "locked":
+		# Only while the shake is not already running (Tern): re-clicking a locked pool
+		# mid-shake must not stack a second thunk on top of the first.
+		if _shake_left <= 0.0 and _sfx != null:
+			_sfx.play("locked_thunk")
 		_shake_level = level
 		_shake_left = SHAKE_TIME
 		queue_redraw()

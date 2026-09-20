@@ -118,6 +118,29 @@ func _test_volume_governs_the_master_bus() -> void:
 		_check(not AudioServer.is_bus_mute(bus), "step %d/5 is not muted" % step)
 		previous = db
 
+	# EVENLY SPACED IN dB, not in amplitude (Maren, D9). Spacing them in amplitude put
+	# steps 3, 4 and 5 within ~4 dB of each other -- five positions, three audible levels.
+	# The drops are a count of loudness, so if three of them sound alike the count lies.
+	var gaps: Array[float] = []
+	for step in range(1, 6):
+		gaps.append(SettingsPanel.volume_db(float(step) / 5.0))
+	_check(absf(gaps[4]) < 0.01, "step 5/5 is unattenuated")
+	_check(absf(gaps[0] - SettingsPanel.MIN_VOLUME_DB) < 0.01,
+		"step 1/5 sits at MIN_VOLUME_DB (%.1f)" % gaps[0])
+	var first_gap := gaps[1] - gaps[0]
+	for i in range(1, 4):
+		var gap := gaps[i + 1] - gaps[i]
+		_check(absf(gap - first_gap) < 0.01,
+			"the gap from step %d to %d matches the others (%.2f vs %.2f dB)"
+				% [i + 1, i + 2, gap, first_gap])
+	# And every gap has to be big enough to hear: ~3 dB is the smallest difference a
+	# listener reliably notices, so a mapping under that would be five lying positions.
+	_check(first_gap >= 3.0, "each step is at least 3 dB apart (%.2f dB)" % first_gap)
+
+	# Step 1 is NOT a second mute -- mute is the speaker glyph, step 1 is quiet but present.
+	SettingsPanel.apply_volume(0.2)
+	_check(not AudioServer.is_bus_mute(bus), "step 1/5 is present, not silence")
+
 	# Mute is a different thing from quiet: the speaker glyph silences outright.
 	SettingsPanel.apply_volume(0.0)
 	_check(AudioServer.is_bus_mute(bus), "zero volume mutes the bus outright")

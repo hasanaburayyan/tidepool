@@ -23,6 +23,15 @@ const DIM := Color(0.15, 0.12, 0.10, 0.55)
 
 const STEPS := 5
 
+## The quietest audible step, in dB below unattenuated. THE RETUNE KNOB: Maren deliberately
+## gave no numbers because picking the curve is a listen judgement and neither of us can
+## hear. Expect this to move once the board reports under D9.
+##
+## -20 dB over four gaps is 5 dB a step. Around 3 dB is the smallest difference a listener
+## reliably notices in context, so 5 keeps all five steps distinguishable with headroom,
+## and step 1 lands quiet but clearly present rather than as a second mute.
+const MIN_VOLUME_DB := -20.0
+
 ## Sat at y=200 and cut the wordmark through the middle, which made the title read as
 ## damaged (Maren). Dropped clear of it: "Tidepool" is drawn on a baseline at y=200, so
 ## anything above ~y=220 collides with the descenders.
@@ -118,18 +127,35 @@ func _set_fullscreen(on: bool) -> void:
 	queue_redraw()
 
 
+## The bus level for a stored volume, spaced EVENLY IN DECIBELS.
+##
+## It used to space the five steps evenly in AMPLITUDE and then convert, which gave roughly
+## -14, -8, -4.4, -1.9, 0 dB. Hearing is logarithmic, so steps 3, 4 and 5 sat within about
+## 4 dB of each other and were nearly indistinguishable, while step 1 fell off a cliff:
+## five positions, about three audible levels, and a hole at the bottom. (Maren, D9.)
+##
+## The drops are a COUNT of loudness. If three of them sound the same the count is lying,
+## and a control the player moves with no effect is worse than no control at all -- the same
+## reasoning as the shells on the map.
+static func volume_db(v: float) -> float:
+	var step := clampi(int(round(v * STEPS)), 0, STEPS)
+	if step <= 0:
+		return MIN_VOLUME_DB
+	return MIN_VOLUME_DB * (1.0 - float(step - 1) / float(STEPS - 1))
+
+
 ## Static so the app shell can apply the same settings on startup without a panel existing.
 ##
-## NOTE: Tidepool has no audio yet -- there is not one sound file in assets/ -- so this
-## changes nothing you can hear today. It is wired to the master bus so that it is already
-## correct when audio arrives, and so the value is being exercised rather than merely
-## stored. Do not report "volume works" from a playtest; there is nothing to hear.
+## Mute and step 1 are DIFFERENT THINGS and must stay that way: mute is the crossed-out
+## speaker, step 1 is "quiet but present". If step 1 were inaudible we would have shipped
+## six states with two of them silence, and the first drop would be a dead entry in a count
+## meant to be honest. (Maren.)
 static func apply_volume(v: float) -> void:
 	var bus := AudioServer.get_bus_index("Master")
 	if bus < 0:
 		return
 	AudioServer.set_bus_mute(bus, v <= 0.0)
-	AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(v, 0.0001)))
+	AudioServer.set_bus_volume_db(bus, volume_db(v))
 
 
 static func apply_fullscreen(on: bool) -> void:
