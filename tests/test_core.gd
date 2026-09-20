@@ -410,12 +410,31 @@ func _test_flow_oneway_and_sponge() -> void:
 	_eq(Flow.wet_positions(g, Flow.compute(g)), [Vector2i(0, 0)],
 		"an arrow pointing back at the source blocks entry entirely")
 
+	# The rule itself, not just one flow that happens to depend on it. Deleting the ONEWAY branch
+	# from Tile.can_exit_through used to cost exactly one assertion across the whole suite, even
+	# though it breaks every arrow in the game -- Limpet found that by deleting it and counting.
+	# A one-way's mask is open on both sides; what makes it a one-way is that only `out_dir` lets
+	# water leave.
+	var arrow := Tile.make(Tile.Kind.ONEWAY, 0b1111, false, Tile.E)
+	_check(arrow.can_exit_through(Tile.E), "a one-way lets water out of the side it points at")
+	for side in [Tile.N, Tile.S, Tile.W]:
+		_check(not arrow.can_exit_through(side),
+			"a one-way pointing E does not leak out of side %d, though its mask is open" % side)
+
 	_suite("sponge")
 	var sponge_grid := _grid_from(["---"], Vector2i(0, 0), Tile.W)
 	sponge_grid.at(Vector2i(1, 0)).kind = Tile.Kind.SPONGE
 	_eq(Flow.wet_positions(sponge_grid, Flow.compute(sponge_grid)),
 		[Vector2i(0, 0), Vector2i(1, 0)],
 		"a sponge soaks up the water but passes none on")
+
+	# Same again for the sponge: a fully open mask, and every side still closed on the way out.
+	# A sponge that passed water on would be a plain channel, and the flow test above is the only
+	# thing that noticed.
+	var sponge := Tile.make(Tile.Kind.SPONGE, 0b1111)
+	for side in [Tile.N, Tile.E, Tile.S, Tile.W]:
+		_check(not sponge.can_exit_through(side),
+			"a sponge passes no water out of side %d, whatever its mask says" % side)
 
 
 # --- Level IO -----------------------------------------------------------------
