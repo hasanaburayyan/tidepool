@@ -8,6 +8,23 @@ extends Node2D
 ## The tide is a MOVE budget, not a clock (design doc §2.1): one rotation costs one unit,
 ## thinking is free, and running out is never a fail screen -- the tide comes back in.
 
+## Emitted ONCE, on the transition where `cleared` latches, after `cleared_at` is stamped.
+## Not on the latched value: `_recompute` runs on every rotation and a listener that fired
+## each time would record the same clear over and over. The app shell listens to this to
+## write stars into the save.
+signal level_cleared(level_no: int, stars: int, moves: int)
+
+## Emitted when the player is done with this pool and wants out -- the post-wave click, or
+## Escape. Only ever fires in shell mode; see `shell_mode`.
+signal exit_requested()
+
+## Off by default, and that default is load-bearing. Standalone `scenes/main.tscn` is what
+## tools/click_test.gd, tools/load_check.gd and tools/shot.gd load, and they expect today's
+## behaviour: clearing a pool walks straight on to the next one and Escape quits. The app
+## shell sets this true so that instead the board hands control back and lets the map
+## decide what happens next. Nothing else about the board changes.
+var shell_mode := false
+
 ## 64, not 72, so Cove's 32 px sprites land at exactly 2x. Pixel art at a fractional
 ## scale under a Nearest filter drops and doubles rows of pixels; 2x is the whole point.
 ## The largest board we ship is 7x6, so 7*64 + margins still fits the 960x640 viewport.
@@ -249,7 +266,10 @@ func _recompute() -> void:
 			cleared_at = anim_time
 			for start in pop_at.values():
 				cleared_at = maxf(cleared_at, float(start))
-		cleared = true
+			cleared = true
+			# After cleared_at is stamped, so a listener can time itself against the wave
+			# rather than cutting it off, and inside the latch so it fires exactly once.
+			level_cleared.emit(grid.id, stars(), moves)
 	queue_redraw()
 
 
@@ -318,7 +338,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_LEFT, KEY_P:
 				load_level(level_index - 1)
 			KEY_ESCAPE:
-				get_tree().quit()
+				# In the shell, Escape backs out to the map; quitting the whole game from
+				# inside a pool would be a trapdoor.
+				if shell_mode:
+					_hand_back()
+				else:
+					get_tree().quit()
 		return
 
 	if event is InputEventMouseMotion:
@@ -338,7 +363,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		# the wave has washed through, so the click that cleared it can't double into a skip.
 		if anim_time < cleared_at + WIPE_TIME:
 			return
-		load_level(level_index + 1)
+		if shell_mode:
+			_hand_back()
+		else:
+			load_level(level_index + 1)
 		return
 	if resetting > 0.0:
 		return
@@ -355,6 +383,17 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## A rotation that changes nothing is free: barnacled tiles, bare sand and crosses all
 ## refuse, and a refused turn never costs the player tide.
+## Leave this pool and let the shell decide what is next. The event is marked handled
+## because the board is freed as a direct result of it: without this the very same click or
+## keypress goes on to the map that just reappeared -- the post-wave click lands on whatever
+## pool happens to sit under the cursor and opens it, and Escape reaches the shell, which
+## reads it as "Escape on the map" and quits the game. Both were real, and both look like
+## the input working exactly once too often.
+func _hand_back() -> void:
+	exit_requested.emit()
+	get_viewport().set_input_as_handled()
+
+
 func _try_rotate(pos: Vector2i, turns: int) -> void:
 	var tile := grid.at(pos)
 	if tile == null:
