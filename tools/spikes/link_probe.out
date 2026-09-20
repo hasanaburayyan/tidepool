@@ -1,0 +1,10 @@
+link_twin.tide         2 rotatable, 1 link group(s)
+   solvable states  unlinked   2   linked   1
+   par (clicks)     unlinked   3   linked   2
+   VERDICT: MECHANIC. The link saves 1 click(s); the player is paid back.
+
+link_conflict.tide     2 rotatable, 1 link group(s)
+   solvable states  unlinked   2   linked   0
+   par              unlinked   2   linked   -- OVER-CONSTRAINED
+   VERDICT: no solution survives the link. Authoring error, not a hard level.
+
