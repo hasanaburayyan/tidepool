@@ -40,6 +40,17 @@ func _initialize() -> void:
 		quit(1)
 		return
 	print("ok   every tile sprite family is complete (%d files), no art missing under assets/" % _expected_sprites().size())
+
+	# The title lettering is not a tile, so the family list above says nothing about it, and
+	# losing it is silent: `title_screen.gd` falls back to the fallback font, so the first
+	# screen of the game goes back to looking unfinished without anything failing.
+	var wordmark := "res://assets/ui/title_wordmark.png"
+	if not FileAccess.file_exists(wordmark) or not (load(wordmark) is Texture2D):
+		print("FAIL the title wordmark is missing or unloadable: %s" % wordmark)
+		print("     Regenerate it with `python3 art/build.py`, then `godot --headless --path . --import`.")
+		quit(1)
+		return
+	print("ok   the title wordmark loads")
 	quit(0)
 
 

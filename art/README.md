@@ -20,6 +20,7 @@ unchanged palette and `git status` is clean. That is the test that nothing drift
 | `palette.json` | the palette, and the role -> colour mapping every sprite draws through |
 | `png.py` | minimal PNG writer and an RGB canvas |
 | `tiles.py` | tile sprites, generated from a connection mask |
+| `wordmark.py` | the title lettering: eight hand-set 5x9 letters, half in the tide |
 | `build.py` | the entry point: writes sprites and contact sheets, and checks the rules |
 | `preview/` | contact sheets, each with a greyscale twin (generated) |
 | `../assets/tiles/` | the shipped sprites (generated) |
@@ -160,3 +161,28 @@ plain channel of the same mask.
 **This deliberately breaks rule 2, and that is correct.** Rule 2 is a channel rule: a
 channel must not change shape, because a shader tweens it. A sponge must, because a
 player has to read it from across the board without looking for it.
+
+## The title lettering
+
+The one thing on screen that was still not in the game's style: the title was set in
+Godot's fallback font, as `title_screen.gd` said in a comment. A system font anti-aliases,
+changes shape between platforms, and is the first thing a player sees.
+
+`wordmark.py` draws the eight letters of "Tidepool" as a 43x9 sprite, in a font that exists
+only for those seven glyphs - the same trade the beach map made for its digits. Above row 4
+a letter is Deep Umber, the ink the pool numbers use; at and below it the letter is
+Tidewater. The word is a tidepool: half-submerged, with the water at one level across every
+letter, the way water in this game always sits level.
+
+Every stroke is one pixel wide, so there is no Umber rim round the wet part the way the
+critters have one - an outline would eat the stroke it outlined and the word would come out
+solid ink. `build.py:assert_wordmark_reads` covers what the rim would have bought and three
+things besides: every letter drew something, no two letters share a column (at this size
+touching letters read as one shape), both materials clear the sand behind the title by more
+than the 60 luma the critters are held to, and the waterline is one row across the word.
+
+`title_screen.gd` blows the sprite up by 8 - an integer, or the pixels stop being square -
+to the 72px height the placeholder font had, so nothing else on the screen moves. It keeps
+the font string as a fallback: a missing texture should cost that screen its art, not its
+name. `tools/load_check.gd` fails if the sprite is missing, because that fallback is silent
+otherwise and the game would quietly go back to looking unfinished.
