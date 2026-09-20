@@ -13,6 +13,16 @@ extends Node2D
 
 signal play_requested()
 
+## The way into settings. A glyph, not the word "Settings", for the no-text reason above.
+##
+## PROVISIONAL: Maren owns where this lives and I asked her on PR #63; this is the option I
+## recommended (an icon on the title screen -- discoverable, one sprite, keeps the rule).
+## It is one rect and one draw call, so moving it is cheap if she wants it elsewhere.
+signal settings_requested()
+
+## Bottom-right, away from the title and the pool, where it does not compete with either.
+const SETTINGS_RECT := Rect2(884, 564, 44, 44)
+
 const ART_DIR := "res://assets/map"
 
 const TITLE := "Tidepool"
@@ -53,6 +63,12 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	var began := false
 	if event is InputEventMouseButton and event.pressed:
+		# Checked before "any click begins", or the settings glyph is unreachable: the
+		# click that lands on it would start the game instead.
+		if SETTINGS_RECT.has_point(event.position):
+			settings_requested.emit()
+			get_viewport().set_input_as_handled()
+			return
 		began = true
 	elif event is InputEventKey and event.pressed and not event.echo:
 		# Escape means leave, not begin. "Any key starts" swallowed it here, so the shell's
@@ -82,3 +98,17 @@ func _draw() -> void:
 		var lift := sin(_t / BREATH_TIME * TAU) * BREATH_PIXELS
 		var pos := Vector2((size.x - _pool.get_width()) * 0.5, 380.0 + lift)
 		draw_texture(_pool, pos.round())
+
+	_draw_settings_glyph()
+
+
+## Three sliders. Placeholder, like the lettering -- a real icon is one sprite from Cove,
+## and the hit target does not move when it arrives.
+func _draw_settings_glyph() -> void:
+	var r := SETTINGS_RECT
+	for i in 3:
+		var y := r.position.y + 12 + i * 10
+		draw_line(Vector2(r.position.x + 6, y), Vector2(r.end.x - 6, y), INK, 2.0)
+		# The knob sits at a different place on each row, which is what makes the glyph
+		# read as "settings" rather than as a menu icon.
+		draw_rect(Rect2(r.position.x + 10 + i * 9, y - 4, 6, 8), INK)

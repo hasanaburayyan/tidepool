@@ -93,6 +93,37 @@ func _initialize() -> void:
 	_ok(app._title.visible, "the title is still showing after Escape")
 	_eq(quits[0], 1, "Escape on the title asks to quit")
 
+	# --- settings opens from the title, over it, and closes again -----------------------
+	# The glyph must be hit-tested BEFORE "any click begins", or the click that lands on it
+	# starts the game and settings is unreachable.
+	await _click_at(app._title.SETTINGS_RECT.get_center())
+	_ok(app._settings != null, "the settings glyph opens settings")
+	_ok(app._map == null or not app._map.visible, "and does NOT start the game")
+
+	if app._settings != null:
+		var panel = app._settings
+		# Volume is five drops, counted not measured. Clicking the third sets 3/5.
+		await _click_at(panel._drops[2].get_center())
+		_eq(snappedf(save.get_volume(), 0.01), 0.6, "clicking the third drop sets volume to 3/5")
+		await _click_at(panel._speaker.get_center())
+		_eq(save.get_volume(), 0.0, "the speaker glyph mutes")
+		await _click_at(panel._drops[4].get_center())
+		_eq(save.get_volume(), 1.0, "clicking the last drop sets full volume")
+
+		# Written immediately, not on the way out: a settings screen that only persists when
+		# you leave it loses the change to a force-quit.
+		var vol_on_disk = SaveDataScript.new(save_path)
+		vol_on_disk.load_game()
+		_eq(vol_on_disk.get_volume(), 1.0, "the volume is already on disk before closing")
+
+	# Escape closes settings and lands back on the title -- it must not fall through and
+	# begin the game, and it must not quit.
+	await _key(KEY_ESCAPE)
+	_ok(app._settings == null, "Escape closes settings")
+	_ok(app._title.visible, "and the title is showing")
+	_ok(app._map == null or not app._map.visible, "and the game did not start")
+	_eq(quits[0], 1, "and it did not ask to quit -- Escape closed the panel, nothing more")
+
 	# Any click begins. Deliberately clicked on pool 1's centre: the title is dismissed by
 	# this very click, so if it is not marked handled the event carries through to the map
 	# underneath and opens a pool immediately.

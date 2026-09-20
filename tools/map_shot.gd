@@ -36,9 +36,15 @@ func _initialize() -> void:
 
 	# The title screen has no save state to vary, so it is a fourth argument rather than a
 	# tool of its own: same window, same capture, one place that knows how to take a shot.
-	if argv.size() > 3 and String(argv[3]) == "title":
+	if argv.size() > 3 and String(argv[3]) in ["title", "settings"]:
 		var title: Node = load("res://scenes/title.tscn").instantiate()
 		root.add_child(title)
+		# Settings is drawn OVER the title, so the shot shows the layer as the player sees
+		# it rather than a panel floating on nothing.
+		if String(argv[3]) == "settings":
+			var panel: Node = load("res://scenes/settings.tscn").instantiate()
+			panel.save = save
+			root.add_child(panel)
 		for _i in 20:
 			await process_frame
 		DirAccess.make_dir_recursive_absolute(out.get_base_dir())
