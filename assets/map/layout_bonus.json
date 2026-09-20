@@ -1,0 +1,10 @@
+{
+  "_comment": "The 25-28 basin bonus block. Separate from layout.json because that file is Cove's, regenerated from the art pipeline; these four are a placement decision (Maren, option B: a cluster off to one side, reading as extra rather than as a fourth tier). Centres only -- tools/bake_layout.gd derives pool, shell and digit positions with the same arithmetic that reproduces Cove's 24 exactly.",
+  "_constraint": "The beach art has dry sand to y~295, wet sand to y~535 and water below. Tier 4 (pools 19-24) sits at y~515 with its sprites ending at y=548, and the viewport is 640 tall, so these four live in the water band with a pool half-height of 30: centres must stay within y 578..610.",
+  "pools": [
+    { "level": 25, "x": 640, "y": 592 },
+    { "level": 26, "x": 732, "y": 606 },
+    { "level": 27, "x": 824, "y": 590 },
+    { "level": 28, "x": 914, "y": 604 }
+  ]
+}
