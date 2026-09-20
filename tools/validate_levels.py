@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
-"""Tidepool level validator.
+"""Tidepool level validator - SUPERSEDED as a checker, kept as a parser.
 
 Reference implementation of the level text format specified in `tidepool-design` §4.
 Written by Maren (Game Director) so that level data stops being "hand-verified" and
-starts being machine-verified. Marlow owns the GDScript loader; this script is the
-spec-as-code it should agree with, and the CI gate for the level files.
+starts being machine-verified.
+
+IT IS NO LONGER THE CI GATE. `tools/verify_levels.gd` replaced it and runs against the
+engine's own loader and solver, which is the only copy that cannot disagree with the game.
+Nothing runs this file automatically, so treat any rule stated here as documentation and
+not as something enforced.
+
+It is NOT dead, which is why it is still here: `tools/probe_mechanic.py` (kept
+deliberately - it is what cut crabs) and the two spikes under `tools/spikes/` import it as
+their .tide parser and rotation model. Deleting it breaks the mechanic probe, which is the
+tool you reach for BEFORE authoring levels for a new mechanic.
 
 What it checks, per level:
   1. PARSE      - the file is well-formed and every glyph is legal.
   2. SOLVE      - replaying `solution:` rescues every critter.        HARD FAIL if not.
   3. PAR        - par == total rotations in `solution:`.              HARD FAIL if not.
-  4. TIDE       - tide == par + 5 (levels 1-12) or par + 6 (13+).     HARD FAIL if not.
+  4. TIDE       - gone. The budget rule lives on `Grid.expected_tide()` and is enforced by
+                  `tools/verify_levels.gd`. A second copy here is how it went stale.
   5. OPTIMALITY - bounded IDDFS to depth par-1, capped by nodes AND a wall clock.
                   shorter solution found -> HARD FAIL (the declared par is wrong).
                   budget spent first     -> WARN, reported as "par unverified".
@@ -449,11 +459,11 @@ def check(level, budget=15.0):
     if moves != level.par:
         errors.append("par is %d but the solution is %d rotations" % (level.par, moves))
 
-    expected_tide = target + (5 if (level.id or 1) <= 12 else 6)
-    if level.tide != expected_tide:
-        errors.append("tide is %d, formula says %d (par %d + %d)"
-                      % (level.tide, expected_tide, target,
-                         5 if (level.id or 1) <= 12 else 6))
+    # The tide-budget check used to live here as `5 if (level.id or 1) <= 12 else 6` - a third
+    # copy of a rule that `tools/verify_levels.gd` owns and that now lives on `Grid.expected_tide`.
+    # It was keyed to the level NUMBER, which was only ever right by coincidence, and the
+    # 2026-09-20 reorder made it wrong. Rather than re-key a copy nobody runs, the check is gone:
+    # one rule, one place, and this file is not the place.
 
     note = "par unchecked"
     if not errors:

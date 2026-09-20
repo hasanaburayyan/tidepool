@@ -657,8 +657,15 @@ func _test_shipping_levels() -> void:
 		if solved["solved"]:
 			_eq(solved["moves"], grid.par, "%s: par is the cheapest solution" % name)
 
-		# 4. Tide is a move budget with room to fumble (design doc 2.1).
-		var slack := 5 if grid.id <= 12 else 6
-		_eq(grid.tide, grid.par + slack, "%s: tide is par+%d exactly" % [name, slack])
+		# 4. Tide is a move budget with room to fumble (design doc 2.1), and how much room is
+		#    keyed to the MECHANIC the level carries, never to where it sits in the running
+		#    order. This used to read `5 if grid.id <= 12 else 6`, a third copy of a rule that
+		#    `tools/verify_levels.gd` already owned; the two agreed only because levels 1-12
+		#    happened to be channels-only. The 2026-09-20 reorder broke the coincidence and this
+		#    check failed "The Arrow" - a level that was correct - for having moved to slot 4.
+		#
+		#    So it calls the rule instead of restating it. One rule, one place: Grid.
+		var want := grid.expected_tide()
+		_eq(grid.tide, want, "%s: tide is par+%d exactly" % [name, want - grid.par])
 		print("      %-16s %dx%d  par %d  tide %d  critters %d  nodes %d" % [
 			name, grid.width, grid.height, grid.par, grid.tide, grid.critters.size(), solved["nodes"]])

@@ -72,6 +72,38 @@ func rotatable_indices() -> Array[int]:
 	return out
 
 
+## True when every tile is plain channel or empty - no one-way, sponge, basin or crab anywhere.
+##
+## Read off the tiles rather than off a field an author has to remember to set: a level's
+## mechanics are already written down in the only place that cannot drift from what the player
+## meets, which is the board itself.
+func channels_only() -> bool:
+	for tile in tiles:
+		if tile.kind != Tile.Kind.CHANNEL and tile.kind != Tile.Kind.EMPTY:
+			return false
+	return true
+
+
+## The tide budget a level of this shape should carry: par+5 for channels only, par+6 once it
+## contains a mechanic the player has to think about.
+##
+## THE rule, in one place, because it has been in three. `tools/verify_levels.gd` had it keyed to
+## the mechanic (fixed in #81); `tests/test_core.gd` and the now-deleted `tools/validate_levels.py`
+## each kept their own copy keyed to `id <= 12`. Those agreed only by coincidence - levels 1-12
+## happened to be channels-only - and the 2026-09-20 reorder broke the coincidence: "The Arrow"
+## moved to 4 carrying par+6 and the test failed a level that was correct.
+##
+## Slack is a forgiveness budget and difficulty is priced by par, which is measured, so a level
+## that moved in the running order must not be retuned to satisfy a rule about where it sits
+## (Maren's ruling). The level is right; the copies of the rule were wrong.
+##
+## One deliberate limit: this does not distinguish one-way from sponge from basin. Today they all
+## mean +1. If a mechanic ever deserves more slack than another, that is a new design decision
+## rather than something this rule already decided.
+func expected_tide() -> int:
+	return par + (5 if channels_only() else 6)
+
+
 func clone() -> Grid:
 	var g := Grid.new()
 	g.width = width

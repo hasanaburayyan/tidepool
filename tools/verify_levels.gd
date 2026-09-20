@@ -136,22 +136,10 @@ func _verify(path: String) -> int:
 		problems.append("engine solves in %d, par claims %d" % [found["moves"], grid.par])
 
 	# 3. Tide budget, keyed to what the level ASKS OF THE PLAYER rather than to where it sits in the
-	# running order. A level with nothing but channels gets par+5; the moment it contains a mechanic
-	# the player has to think about, it gets par+6.
-	#
-	# This used to read `grid.id <= 12`, which was the same answer by coincidence: levels 1-12 are
-	# channels-only and 13-28 all carry a one-way, a sponge or a basin. The coincidence held because
-	# nobody had reordered the levels -- and TIDE-70 reorders them, moving one-way gates to about 4
-	# and sponges to about 8. Under the old rule every moved level fails validation for a reason
-	# that has nothing to do with the level.
-	#
-	# Measured before changing it: this predicate reproduces all 28 shipped levels exactly, so the
-	# re-key is behaviour-preserving today and correct after the move.
-	#
-	# Note it does not distinguish one-way from sponge from basin -- today they all mean +1. If a
-	# mechanic ever deserves more slack than another that is a new design decision, not a thing this
-	# rule already decided. CRAB appears in no shipped level yet and will need the same ruling.
-	var want_tide := grid.par + (5 if _channels_only(grid) else 6)
+	# running order. The rule itself lives on Grid, because this checker was only one of three
+	# places that held a copy of it (#81 fixed this one; the test and a dead python validator kept
+	# theirs keyed to `id <= 12`). Calling it means there is nothing here left to drift.
+	var want_tide := grid.expected_tide()
 	if grid.tide != want_tide:
 		problems.append("tide %d, expected par+%d = %d" % [grid.tide, want_tide - grid.par, want_tide])
 
@@ -169,13 +157,3 @@ func _verify(path: String) -> int:
 	return FAILED
 
 
-## True when every tile is plain channel or empty -- no one-way, sponge, basin or crab anywhere.
-##
-## Read off the tiles rather than off a field an author has to remember to set, because a level's
-## mechanics are already written down in the only place that cannot drift from what the player
-## meets: the board itself.
-static func _channels_only(grid: Grid) -> bool:
-	for tile in grid.tiles:
-		if tile.kind != Tile.Kind.CHANNEL and tile.kind != Tile.Kind.EMPTY:
-			return false
-	return true
