@@ -15,6 +15,10 @@ on:
       - "project.godot"
       - "tools/click_test.gd"
       - ".github/workflows/click.yml"
+      # The shell wires the map, the save and the board together; all three can break it.
+      - "scripts/ui/**"
+      - "scripts/systems/**"
+      - "tools/shell_test.gd"
 
 jobs:
   click:
@@ -38,3 +42,13 @@ jobs:
           xvfb-run -a -s "-screen 0 1280x800x24"
           godot --path . --rendering-driver opengl3 --audio-driver Dummy
           --script res://tools/click_test.gd
+
+      # click_test proves a pool plays. This proves the game around it: that picking a pool
+      # on the map opens that puzzle, that clearing it writes stars that survive a restart,
+      # and that a locked pool refuses. Same real-window requirement, same reason.
+      - name: Play the shell -- map, pool, clear, back to the map, and reload the save
+        timeout-minutes: 5
+        run: >
+          xvfb-run -a -s "-screen 0 1280x800x24"
+          godot --path . --rendering-driver opengl3 --audio-driver Dummy
+          --script res://tools/shell_test.gd

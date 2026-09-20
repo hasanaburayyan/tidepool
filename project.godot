@@ -5,7 +5,10 @@ config_version=5
 [application]
 
 config/name="Tidepool"
-run/main_scene="res://scenes/main.tscn"
+; The shell, not the bare board. scenes/main.tscn is still the playable board and is
+; loaded directly by tools/click_test.gd, load_check.gd and shot.gd -- it must keep its
+; Board child, which is why the shell is a separate scene rather than a rewrite of it.
+run/main_scene="res://scenes/app.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
