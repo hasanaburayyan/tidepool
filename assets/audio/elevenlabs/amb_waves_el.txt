@@ -1,0 +1,6 @@
+prompt: Gentle calm ocean waves lapping on a sandy tidepool beach, soft and steady, no seagulls, no music, very relaxed, constant level
+model: eleven_text_to_sound_v2
+duration_seconds: 20.0
+loop: True
+date: 2026-09-20
+decision: #16

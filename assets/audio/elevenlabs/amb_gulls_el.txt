@@ -1,0 +1,6 @@
+prompt: Seagulls calling softly in the distance over a calm beach, a few gentle calls with quiet gaps, faint background surf, no music
+model: eleven_text_to_sound_v2
+duration_seconds: 20.0
+loop: True
+date: 2026-09-20
+decision: #16

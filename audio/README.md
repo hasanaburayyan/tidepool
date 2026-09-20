@@ -38,3 +38,10 @@ Different, coprime-ish lengths so the pair does not audibly repeat together. Wav
 construction, with three shallow integer-cycle modulations, so there is no seam and no swell to count. Loop in code:
 set `AudioStreamWAV.loop_mode = LOOP_FORWARD` with loop_end = sample count (or set it in the .wav import). Play both
 continuously across level and map (C6). Far below the chime: at step 1 (bus -14) waves peak about -32 dBFS; needs a listen.
+
+## ElevenLabs set (board Decision #16: commercial use confirmed; Audio Designer only)
+`audio/gen_elevenlabs.py` calls the sound-generation API (key read in-process from the board's .env, never printed or stored).
+Outputs in `assets/audio/elevenlabs/`: raw `.mp3` + sidecar `.txt` (prompt, model, date) per asset, and `*_el_mix.wav`
+level-matched to the mix ceilings (waves -18, gulls -22, chime -3). `COUNT.txt` = generations used (cap 60).
+The script-made set in `assets/audio/sfx/` is the fallback and is untouched. Nothing here is wired yet; not ear-verified.
+Note: a first gulls prompt ("very sparse") returned near-silence (-55 dB peak); it counted against the cap.
