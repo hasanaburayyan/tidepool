@@ -1,0 +1,89 @@
+extends Node
+## One-shot sound effects. A small pool of players, added as a child of whatever wants to
+## make noise.
+##
+## EVERYTHING GOES THROUGH THE MASTER BUS, and that is the whole integration with settings:
+## the volume control and the mute in settings_panel.gd set the master bus, so every sound
+## here is attenuated and silenced by the player's choice without any per-sound plumbing.
+## There must never be a second volume path -- see `tidepool-ui-systems`.
+##
+## A missing file warns once and plays nothing. The game has to keep working for anyone who
+## has not pulled the audio assets, and a silent build is a far better failure than a crash.
+
+const DIR := "res://assets/audio/sfx"
+
+## Enough voices that a fast player clicking through a solution never cuts their own last
+## rotation off. Four is the smallest number that sounded like overlapping clicks rather
+## than a stutter when I replayed a level's solution at speed.
+const VOICES := 4
+
+var _streams: Dictionary = {}
+var _players: Array[AudioStreamPlayer] = []
+var _next_voice := 0
+
+## base name -> the variant index played last, so the picker can avoid repeating it.
+var _last_variant: Dictionary = {}
+
+var _warned: Dictionary = {}
+
+
+func _ready() -> void:
+	for _i in VOICES:
+		var p := AudioStreamPlayer.new()
+		# Named explicitly rather than left to the default: this is the bus settings drives,
+		# and saying so here is what makes the link greppable from either end.
+		p.bus = "Master"
+		add_child(p)
+		_players.append(p)
+
+
+func _stream(sound: String) -> AudioStream:
+	if _streams.has(sound):
+		return _streams[sound]
+	var path := "%s/%s.wav" % [DIR, sound]
+	if not ResourceLoader.exists(path):
+		if not _warned.has(sound):
+			_warned[sound] = true
+			push_warning("sfx: no such sound %s" % path)
+		return null
+	var stream: AudioStream = load(path)
+	_streams[sound] = stream
+	return stream
+
+
+## Play a sound by name. Round-robins the voices so a new sound never cuts off the one
+## before it.
+func play(sound: String) -> void:
+	var stream := _stream(sound)
+	if stream == null or _players.is_empty():
+		return
+	var player := _players[_next_voice]
+	_next_voice = (_next_voice + 1) % _players.size()
+	player.stream = stream
+	player.play()
+
+
+## Play one of `<base>_1` .. `<base>_<count>`, never the same one twice running.
+func play_variant(base: String, count: int) -> void:
+	var i := pick_variant(base, count)
+	if i > 0:
+		play("%s_%d" % [base, i])
+
+
+## The choice itself, kept pure and separate from playing so it can be tested without an
+## audio device or a scene tree. Returns a 1-based index, or 0 when there is nothing to pick.
+##
+## Tern's rule: never the same variant twice in a row. With three files that is the
+## difference between a texture and a tic.
+func pick_variant(base: String, count: int) -> int:
+	if count <= 0:
+		return 0
+	if count == 1:
+		_last_variant[base] = 1
+		return 1
+	var last: int = _last_variant.get(base, 0)
+	var i := last
+	while i == last:
+		i = randi_range(1, count)
+	_last_variant[base] = i
+	return i

@@ -31,11 +31,12 @@ signal settings_requested()
 ## decide what happens next. Nothing else about the board changes.
 var shell_mode := false
 
+const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
+const SfxScript := preload("res://scripts/systems/sfx.gd")
+
 ## 64, not 72, so Cove's 32 px sprites land at exactly 2x. Pixel art at a fractional
 ## scale under a Nearest filter drops and doubles rows of pixels; 2x is the whole point.
 ## The largest board we ship is 7x6, so 7*64 + margins still fits the 960x640 viewport.
-const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
-
 const TILE_SIZE := 64
 const MARGIN := Vector2(40, 108)
 const LEVEL_DIR := "res://levels"
@@ -186,7 +187,20 @@ func _draw_sprite(tex: Texture2D, rect: Rect2, turns: int = 0, scale: float = 1.
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
+## Sound effects. Added here rather than as an autoload so the bare main.tscn the tools load
+## is still self-contained -- it makes noise on its own, and every sound goes through the
+## master bus that settings drives.
+var _sfx: Node = null
+
+## True while a level is being (re)built, so the recompute that sets up the opening board
+## cannot fire a rescue chime for a critter the author placed already-wet. A chime on level
+## entry would be announcing something the player did not do.
+var _loading := false
+
+
 func _ready() -> void:
+	_sfx = SfxScript.new()
+	add_child(_sfx)
 	_load_art()
 	levels = _find_levels()
 	if levels.is_empty():
@@ -236,7 +250,9 @@ func restart() -> void:
 	tide_left = grid.tide
 	drained_at = -INF
 	wet = {}
+	_loading = true
 	_recompute()
+	_loading = false
 
 
 func _recompute() -> void:
@@ -264,6 +280,10 @@ func _recompute() -> void:
 		if not rescued.has(i):
 			# Rescued by the rules this instant; rescued on screen when the water gets there.
 			pop_at[i] = anim_time + float(arriving.get(grid.index(grid.critters[i]["pos"]), 0.0))
+			# Tern: the frame the tile becomes WET, not when the tween lands. `rescued`
+			# latches, so this is once per rescue and never again.
+			if not _loading and _sfx != null:
+				_sfx.play("rescue_chime")
 		rescued[i] = true
 	# Sponges are not latched the way critters are: rotating one off the route wrings it
 	# out and the level un-clears. A sponge you cannot route back to is a dead level, so
@@ -429,11 +449,17 @@ func _try_rotate(pos: Vector2i, turns: int) -> void:
 	# A click on barnacles is answered, not ignored: silence reads as a dropped click.
 	if tile.locked and tile.kind != Tile.Kind.EMPTY:
 		shakes[grid.index(pos)] = SHAKE_TIME
+		if _sfx != null:
+			_sfx.play("locked_thunk")
 		return
 	if not tile.can_rotate() or tile.rotation_period() <= 1:
 		return
 	if not grid.rotate_at(pos, turns):
 		return
+	# Only reached when the rotation actually happened: barnacles, bare sand and the cross
+	# have all returned above, so a no-op never makes a sound.
+	if _sfx != null:
+		_sfx.play_variant("rotate_click", 3)
 	moves += 1
 	tide_left -= 1
 	drained_at = anim_time
