@@ -12,6 +12,8 @@ extends Node2D
 ## to the map instead of quitting. With the flag off, main.tscn is unchanged.
 
 const TITLE_SCENE := preload("res://scenes/title.tscn")
+const SETTINGS_SCENE := preload("res://scenes/settings.tscn")
+const SettingsPanel := preload("res://scripts/ui/settings_panel.gd")
 const MAP_SCENE := preload("res://scenes/map.tscn")
 const LEVEL_SCENE := preload("res://scenes/main.tscn")
 const SaveDataScript := preload("res://scripts/systems/save_data.gd")
@@ -32,6 +34,7 @@ var quit_on_escape := true
 var _title: Node = null
 var _map: Node = null
 var _level: Node = null
+var _settings: Node = null
 
 
 func _ready() -> void:
@@ -45,8 +48,8 @@ func _ready() -> void:
 ## Settings are applied on entry rather than only when changed, so a save carried from
 ## another machine opens the way the player left it.
 func _apply_settings() -> void:
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN
-		if save.get_fullscreen() else DisplayServer.WINDOW_MODE_WINDOWED)
+	SettingsPanel.apply_fullscreen(save.get_fullscreen())
+	SettingsPanel.apply_volume(save.get_volume())
 
 
 ## Hidden is not enough on its own: a node that is invisible still receives unhandled
@@ -66,9 +69,31 @@ func show_title() -> void:
 	if _title == null:
 		_title = TITLE_SCENE.instantiate()
 		_title.play_requested.connect(show_map)
+		_title.settings_requested.connect(show_settings)
 		add_child(_title)
 	_set_active(_title, true)
 	_set_active(_map, false)
+
+
+## Settings sits OVER the title rather than replacing it: it is a layer, not a place, which
+## is why the panel dims what is behind instead of covering it. The title keeps drawing and
+## stops taking input, so a click on the panel cannot also start the game.
+func show_settings() -> void:
+	if _settings == null:
+		_settings = SETTINGS_SCENE.instantiate()
+		_settings.save = save
+		_settings.closed.connect(_close_settings)
+		add_child(_settings)
+	_title.set_process_unhandled_input(false)
+	_set_active(_settings, true)
+
+
+func _close_settings() -> void:
+	if _settings != null:
+		_settings.queue_free()
+		_settings = null
+	if _title != null:
+		_title.set_process_unhandled_input(true)
 
 
 func show_map() -> void:
