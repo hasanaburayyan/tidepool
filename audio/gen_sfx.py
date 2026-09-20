@@ -13,6 +13,10 @@ PARAMS = {
     "chime": {"peak_db": -3.0, "f1": 880, "f2": 1318.5, "len": 0.9},
     "plink": {"peak_db": -7.0, "freq": 1568, "len": 0.25},
     "wave": {"peak_db": -6.0, "len": 1.2, "peak_at": 0.35},
+    "gate": {"peak_db": -9.0, "len": 0.30},
+    "basin_held": {"peak_db": -10.0, "len": 0.35},
+    "basin_overflow": {"peak_db": -7.0, "len": 0.9},
+    "menu": {"peak_db": -11.0, "freq": 740, "len": 0.06},
     "thunk": {"peak_db": -8.0, "freq": 118, "len": 0.20},
 }
 
@@ -83,11 +87,53 @@ def wash():
     x = lp(lp(rng.standard_normal(len(t)), 1800), 1800) * env
     return norm(fade(x, 40), p["peak_db"])
 
+def _body(t, f=150, rng=None):
+    """Shared 'water in a stone basin' body: soft low tone + low-passed noise. Flat pitch."""
+    x = np.sin(2*np.pi*f*t) * np.exp(-t*9)
+    x += 0.5 * lp(rng.standard_normal(len(t)), 420) * np.exp(-t*7)
+    x[:int(SR*0.01)] *= np.linspace(0, 1, int(SR*0.01))
+    return x
+
+def gate():
+    # sluice bar slides (soft scrape, rising in level not pitch) then settles with a flat wooden thock. Not a buzz.
+    p = PARAMS["gate"]; rng = np.random.default_rng(31)
+    t = np.arange(int(SR*p["len"])) / SR
+    scrape = lp(rng.standard_normal(len(t)), 900) * np.sin(np.pi*np.clip(t/0.16, 0, 1))**2 * (t < 0.16) * 0.5
+    ts = np.clip(t - 0.15, 0, None)
+    thock = np.sin(2*np.pi*165*ts) * np.exp(-ts*26) * (t >= 0.15)
+    thock[int(0.15*SR):int(0.155*SR)] *= np.linspace(0, 1, int(0.005*SR))
+    return norm(fade(scrape + thock, 15), p["peak_db"])
+
+def basin_held():
+    p = PARAMS["basin_held"]; rng = np.random.default_rng(41)
+    t = np.arange(int(SR*p["len"])) / SR
+    return norm(fade(lp(_body(t, rng=rng), 600), 20), p["peak_db"])  # contained, dull
+
+def basin_overflow():
+    # SAME body (same seed, same tone) so the ear links the two states, plus a rising bright wash = release
+    p = PARAMS["basin_overflow"]; rng = np.random.default_rng(41)
+    t = np.arange(int(SR*p["len"])) / SR
+    body = _body(t, rng=rng)
+    wash = lp(np.random.default_rng(43).standard_normal(len(t)), 3500)
+    wash = wash - lp(wash, 900)  # bright band
+    env = np.sin(0.5*np.pi*np.clip(t/0.4, 0, 1))**2 * np.exp(-np.clip(t-0.4, 0, None)*3.5)
+    return norm(fade(body + 1.4*wash*env, 40), p["peak_db"])
+
+def menu():
+    p = PARAMS["menu"]; t = np.arange(int(SR*p["len"])) / SR
+    x = np.sin(2*np.pi*p["freq"]*t) * np.exp(-t*70)
+    x[:int(SR*0.002)] *= np.linspace(0, 1, int(SR*0.002))
+    return norm(fade(x, 5), p["peak_db"])
+
 OUT.mkdir(parents=True, exist_ok=True)
 for i in range(PARAMS["click"]["variants"]): write(f"rotate_click_{i+1}", click(i))
 write("locked_thunk", thunk())
 write("rescue_chime", chime())
 write("shell_plink", plink())
+write("gate_shut", gate())
+write("basin_held", basin_held())
+write("basin_overflow", basin_overflow())
+write("menu_click", menu())
 write("clear_wave", wash())
 for f in sorted(OUT.glob("*.wav")):
     d = np.frombuffer(wave.open(str(f)).readframes(10**7), np.int16) / 32768

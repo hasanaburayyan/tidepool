@@ -26,3 +26,8 @@ Thunk must not outlast the tile shake (0.25s, board.gd SHAKE_TIME); it is 0.20s.
 `shell_plink.wav` (-7): once per shell fill, 0.2 s apart, 1-3 times. `clear_wave.wav` (-6, peaks 0.35 s in):
 start it at `(shell_count-1)*0.2 s` so its peak lands just after the last shell; a one-shell clear starts it immediately.
 Levels raised because step 1 is bus -14 dB (Nerite): a -15 dBFS click was -29 at step 1.
+
+## Gate, basin, menu
+- `gate_shut` (-9, 0.30s): soft slide then flat wooden thock; no falling pitch, no buzz. Fire when the sluice bar shuts, only while it is visible.
+- `basin_held` (-10) / `basin_overflow` (-7): same body (seed, tone), held is low-passed and dull, overflow adds a rising bright wash. Fire on the frame the basin state is shown.
+- `menu_click` (-11): soft tick for menu buttons.
